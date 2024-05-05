@@ -11,12 +11,13 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.ResponseBuilder;
 import java.sql.SQLException;
 import java.util.HashMap;
+import org.json.JSONObject;
 
 /**
  * Root resource (exposed at "myresource" path)
  */
 @Path("auth")
-public class MyResource {
+public class apphandler {
 
     /**
      * Method handling HTTP GET requests. The returned object will be sent
@@ -31,10 +32,13 @@ public class MyResource {
     public Response login(String data)throws SQLException {
         String jsondata = "";
         HashMap map = new HashMap();
-        if(server.loginCheck(data)){
-            map.put("status","success");
+        map = server.loginCheck(data);
+        boolean status =(boolean) map.get("status");
+        if(status){
+            map.remove("status");
+            map.put("check","success");
         }else{
-            map.put("status","user Not Exists");
+            map.put("check","user Not Exists");
         }
         Gson gs = new Gson();
         jsondata = gs.toJson(map);
@@ -63,6 +67,58 @@ public class MyResource {
         }
         Gson gs = new Gson();
         jsondata = gs.toJson(map);
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
+    @POST
+    @Path("/authCodeIntiation")
+    public Response authCodeIntiation(String data){
+        String jsondata = "";
+        try{
+            HashMap map = server.authcodesave(data);
+            JSONObject js = new JSONObject(data);
+            map.put("emailid", js.getString("emailid"));
+            HashMap mailMap = server.mailsend(map);
+            Gson gs = new Gson();
+            jsondata = gs.toJson(mailMap);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
+    @POST
+    @Path("/getauthcode")
+    public Response getauthcode(String data){
+        String jsondata="";
+        try{
+            HashMap map = server.getauth(data);
+            Gson gs = new Gson();
+            jsondata = gs.toJson(map);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
+    @POST
+    @Path("/authCodeCheck")
+    public Response authCodeCheck(String data){
+        String jsondata="";
+        try{
+            
+        }catch(Exception e){
+            e.printStackTrace();
+        }
         ResponseBuilder response = Response.ok();
         response.entity(jsondata);
         response.header("Access-Control-Allow-Origin", "*");

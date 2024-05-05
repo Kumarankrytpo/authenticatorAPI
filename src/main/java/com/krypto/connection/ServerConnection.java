@@ -15,7 +15,17 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import javax.mail.Authenticator;
+import javax.mail.Message;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import org.json.JSONObject;
 
 /**
@@ -90,26 +100,34 @@ public class ServerConnection {
         return rtnflag;
     }
     
-    public boolean loginCheck(String loginData) throws SQLException{
+    public HashMap loginCheck(String loginData) throws SQLException{
         Connection con = null;
         boolean rtnflag = true;
+        HashMap rtnmap = new HashMap();
         try{
             System.out.println("LOGIN DATA >>>"+loginData);
             con = getConnection();
             PreparedStatement pst = null;
             JSONObject js = new JSONObject(loginData);
             String loginname = js.getString("username");
-            String SQL = "select uid,password from userdetail where username=?";
+            System.out.println("THIS IS LOGINNAME "+loginname);
+            String SQL = "select uid,password,emailid from userdetail where username=?";
             pst  = con.prepareStatement(SQL);
             pst.setString(1, loginname);
             ResultSet rs = pst.executeQuery();
-            System.out.println("RETURN ROW : "+rs.getRow());
             if(rs.next()){
-                System.out.println("THIS IS UI P "+rs.getInt("uid"));
                 String hashedPassword = rs.getString("password");
+                System.out.println("THIS IS HASHAED "+hashedPassword);
                 rtnflag = loginDecrypt(hashedPassword,js.get("password").toString());
+                rtnmap.put("status", rtnflag);
+                if(rtnflag){
+                    String mailid = rs.getString("emailid");
+                    rtnmap.put("emailid", mailid);
+                    int userid = rs.getInt("uid");
+                    rtnmap.put("userid", userid);
+                }
             }else{
-                rtnflag=false;
+                rtnmap.put("status", false);
             }
         }catch(Exception e){
             e.printStackTrace();
@@ -118,9 +136,10 @@ public class ServerConnection {
                 con.close();
             }
         }
-        System.out.println("LOGIN RETURN FLAG >>"+rtnflag);
-        return rtnflag;
+        System.out.println("LOGIN RETURN FLAG >>"+rtnmap);
+        return rtnmap;
     }
+   
   
     public String passwordEncrypt(String password) {
         String hashedPassword = "";
@@ -147,6 +166,96 @@ public class ServerConnection {
             e.printStackTrace();
         }
         return rtnflag;
+    }
+    
+    public HashMap authcodesave(String data){
+        System.out.println("INSIDE AUTH COde Creation");
+        Connection con = null;
+        HashMap rtnmap = new HashMap();
+        try{
+            con = getConnection();
+            Random rand = new Random();
+            int autCode = rand.nextInt((999998 - 100000));
+            JSONObject js = new JSONObject(data);
+            String SQL = "insert into authCode(uid,code) values(?,?)";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            pst.setInt(1, js.getInt("userid"));
+            pst.setInt(2, autCode);
+            pst.execute();
+            rtnmap.put("authcode", autCode);
+            rtnmap.put("userid", js.getInt("userid"));
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return rtnmap;
+    }
+    
+    public HashMap mailsend(HashMap map){
+        HashMap rtnmap = new HashMap();
+        try{
+            Properties prop = new Properties();
+            prop.put("mail.smtp.auth", "true");
+            prop.put("mail.smtp.starttls.enable","true");
+            prop.put("mail.smtp.host", "smtp.gmail.com");
+            prop.put("mail.smtp.port","587");
+            String username = "kumarannathan871999@gmail.com";
+            String password = "xwxlywcstlppuebx";
+            
+            Session session = Session.getDefaultInstance(prop, new Authenticator(){
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication(){
+                    return new PasswordAuthentication(username,password);
+                }
+            });
+            
+            Message message = prepareMailMessage(session,username,map);
+            Transport.send(message);
+            rtnmap.put("authcode", map.get("authcode").toString());
+            rtnmap.put("userid", map.get("userid").toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return rtnmap;
+    }
+
+    public Message prepareMailMessage(Session session, String fromid, HashMap map) {
+        Message message = new MimeMessage(session);
+        try {
+            message.setFrom(new InternetAddress(fromid));
+            message.setRecipient(Message.RecipientType.TO, new InternetAddress(map.get("emailid").toString()));
+            message.setSubject("Authenticator Auth Code");
+            String link = "http://localhost:3000/authcodeidentify?uid="+map.get("userid").toString();
+            String body = "Please click the below link to get: <br/>"
+                    + "<a href='" + link + "' target='_blank'>Link</a>";
+
+            message.setContent("This is authCode " + body, "text/html");
+
+            message.setContent("This is authCode " + body, "text/html");
+
+            message.setContent("This is authCode " + body, "text/html");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return message;
+    }
+    
+    public HashMap getauth(String data) throws SQLException{
+        Connection con=null;
+        HashMap rtnmap = new HashMap();
+        try{
+            con = getConnection();
+            JSONObject js = new JSONObject(data);
+            String SQL = "select code from authCode where uid=?";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            pst.setInt(1, Integer.parseInt(js.getString("userid")));
+            ResultSet rs = pst.executeQuery();
+            if(rs.next()){
+                rtnmap.put("authcode", rs.getString("code"));
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return rtnmap;
     }
 
 }
