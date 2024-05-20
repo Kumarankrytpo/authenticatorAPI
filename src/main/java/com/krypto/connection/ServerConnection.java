@@ -55,10 +55,9 @@ public class ServerConnection {
             JSONObject js= new JSONObject(data);
             con = getConnection();
             PreparedStatement pst = null;
-            String SQL = "select uid from userdetail where username=? and emailid=?";
+            String SQL = "select uid from userdetail where username=?";
             pst = con.prepareCall(SQL);
             pst.setString(1, js.getString("username"));
-            pst.setString(2, js.getString("emailid"));
             ResultSet rs = pst.executeQuery();
             if(rs.next()){
                 System.out.println("@@INSIDE userdetail check "+rs.getString("uid"));
@@ -82,12 +81,17 @@ public class ServerConnection {
             JSONObject js= new JSONObject(newData);
             String hashedPassword = passwordEncrypt(js.getString("password"));
             con = getConnection();
-            String SQL = "insert into userdetail(username,password,emailid) values(?,?,?)";
+            String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto) values(?,?,?,?,?,?,?,?)";
             PreparedStatement pst = null;
             pst = con.prepareStatement(SQL);
             pst.setString(1, js.getString("username"));
             pst.setString(2, hashedPassword);
             pst.setString(3, js.getString("emailid"));
+            pst.setString(4, js.getString("empid"));
+            pst.setString(5, js.getString("firstname"));
+            pst.setString(6, js.getString("lastname"));
+            pst.setString(7, js.getString("role"));
+            pst.setString(8, js.getString("reportto"));
             pst.execute();
         }catch(Exception e){
             rtnflag=false;
@@ -111,7 +115,7 @@ public class ServerConnection {
             JSONObject js = new JSONObject(loginData);
             String loginname = js.getString("username");
             System.out.println("THIS IS LOGINNAME "+loginname);
-            String SQL = "select uid,password,emailid from userdetail where username=?";
+            String SQL = "select uid,password,emailid,role from userdetail where username=?";
             pst  = con.prepareStatement(SQL);
             pst.setString(1, loginname);
             ResultSet rs = pst.executeQuery();
@@ -123,8 +127,10 @@ public class ServerConnection {
                 if(rtnflag){
                     String mailid = rs.getString("emailid");
                     rtnmap.put("emailid", mailid);
+                    rtnmap.put("role", rs.getString("role"));
                     int userid = rs.getInt("uid");
                     rtnmap.put("userid", userid);
+                    rtnmap.put("username", loginname);
                 }
             }else{
                 rtnmap.put("status", false);
@@ -168,7 +174,7 @@ public class ServerConnection {
         return rtnflag;
     }
     
-    public HashMap authcodesave(String data){
+    public HashMap authcodesave(String data) throws SQLException{
         System.out.println("INSIDE AUTH COde Creation");
         Connection con = null;
         HashMap rtnmap = new HashMap();
@@ -177,6 +183,7 @@ public class ServerConnection {
             Random rand = new Random();
             int autCode = rand.nextInt((999998 - 100000));
             JSONObject js = new JSONObject(data);
+            deleteAuthCode(js.getInt("userid"),con);
             String SQL = "insert into authCode(uid,code) values(?,?)";
             PreparedStatement pst = con.prepareStatement(SQL);
             pst.setInt(1, js.getInt("userid"));
@@ -186,6 +193,10 @@ public class ServerConnection {
             rtnmap.put("userid", js.getInt("userid"));
         }catch(Exception e){
             e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
         }
         return rtnmap;
     }
@@ -224,9 +235,7 @@ public class ServerConnection {
             message.setFrom(new InternetAddress(fromid));
             message.setRecipient(Message.RecipientType.TO, new InternetAddress(map.get("emailid").toString()));
             message.setSubject("Authenticator Auth Code");
-            String link = "http://localhost:3000/authcodeidentify?uid="+map.get("userid").toString();
-            String body = "Please click the below link to get: <br/>"
-                    + "<a href='" + link + "' target='_blank'>Link</a>";
+            String body = "Please find the authenticator code <br/> "+map.get("authcode").toString();
 
             message.setContent("This is authCode " + body, "text/html");
 
@@ -254,6 +263,96 @@ public class ServerConnection {
             }
         }catch(Exception e){
             e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return rtnmap;
+    }
+    
+    public HashMap authCodeCheck(String data) throws SQLException{
+        Connection con=null;
+        HashMap rtnmap = new HashMap();
+        try{
+            con = getConnection();
+            JSONObject js = new JSONObject(data);
+            System.out.println("THIS IS JS "+js);
+            String SQL = "select code from authCode where uid=? and code=?";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            pst.setInt(1, js.getInt("userid"));
+            pst.setString(2, js.getString(("authcode")));
+            ResultSet rs = pst.executeQuery();
+            if(rs.next()){
+                rtnmap.put("status", "success");
+                deleteAuthCode(js.getInt(("userid")),con);
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return rtnmap;
+    }
+    
+    public void deleteAuthCode(int userid,Connection con1) throws SQLException{
+        Connection con = con1;
+        try{
+            String sql = "delete from authcode where uid=?";
+            PreparedStatement pst = con.prepareStatement(sql);
+            pst.setInt(1, userid);
+            pst.execute();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+    
+    public boolean authCodeAvailable(String data) throws SQLException{
+        boolean rtnflag=true;
+        Connection con = null;
+        try{
+            con = getConnection();
+            JSONObject js = new JSONObject(data);
+            String sql = "select code from authcode where uid=?";
+            PreparedStatement pst = con.prepareStatement(sql);
+            pst.setInt(1, js.getInt("userid"));
+            ResultSet rs = pst.executeQuery();
+            if(rs.next()){
+                rtnflag = true;
+            }else{
+                rtnflag=false;
+            }
+        }catch(Exception e){
+            
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return rtnflag;
+    }
+    
+    public HashMap getempcode() throws SQLException{
+        HashMap rtnmap = new HashMap();
+        Connection con = null;
+        try{
+            con = getConnection();
+            String SQL = "select count(1) from userdetail";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            ResultSet rs = pst.executeQuery();
+            if(rs.next()){
+                rtnmap.put("empcode", rs.getInt("count")+1);
+            }else{
+                rtnmap.put("empcode", 1);
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
         }
         return rtnmap;
     }
