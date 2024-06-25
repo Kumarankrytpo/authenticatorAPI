@@ -15,6 +15,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -26,6 +27,7 @@ import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -355,6 +357,31 @@ public class ServerConnection {
             }
         }
         return rtnmap;
+    }
+    
+    public JSONArray getManagers(String data) throws SQLException{
+        JSONArray rtnlst = new JSONArray();
+        Connection con = null;
+        try{
+            con = getConnection();
+            String SQL = "Select username,empid from userdetail where role in('admin','Project Manager','Team Leader')";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            ResultSet rs = pst.executeQuery();
+            while(rs.next()){
+                JSONObject js = new JSONObject();
+                js.put("name", rs.getString("username"));
+                js.put("empid", rs.getString("empid"));
+                rtnlst.put(js);
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        System.out.println("THIS IS USER LIST "+rtnlst);
+        return rtnlst;
     }
 
 }

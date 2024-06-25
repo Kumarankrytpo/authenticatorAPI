@@ -12,7 +12,9 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.ResponseBuilder;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -159,6 +161,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
+                System.out.println("STATUS >>>"+status);
                 if (status.equalsIgnoreCase("sessionexpired")) {
                     HashMap map = new HashMap();
                     map.put("status", "sessionexpired");
@@ -253,5 +256,48 @@ public class apphandler {
             rtnmap.put("status", "sessionexpired");
         }
         return rtnmap;
+    }
+    
+    @POST
+    @Path("/getManagers")
+    public Response getManagers(String data){
+        String jsondata = "";
+        try{
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    JSONArray list = server.getManagers(data);
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    map.put("userlist", list);
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
     }
 }

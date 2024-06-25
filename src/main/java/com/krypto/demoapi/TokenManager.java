@@ -19,9 +19,9 @@ import java.util.Date;
 public class TokenManager {
     private static final String SECRET = "K#R&Y^P@T%0";
     private static final String ISSUER = "auth0";
-    private static final long ACCESS_TOKEN_EXPIRATION = 1 * 60 * 1000; // 5 minutes
+    private static final long ACCESS_TOKEN_EXPIRATION = 5 * 60 * 1000; // 5 minutes
 //    private static final long REFRESH_TOKEN_EXPIRATION = 2 * 60 * 60 * 1000;// 2 hoursd
-    private static final long REFRESH_TOKEN_EXPIRATION = 1 * 60 * 1000;
+    private static final long REFRESH_TOKEN_EXPIRATION = 120 * 60 * 1000;
 
     private static final Algorithm algorithm = Algorithm.HMAC256(SECRET);
 
