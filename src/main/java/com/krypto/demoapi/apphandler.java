@@ -248,7 +248,7 @@ public class apphandler {
         try {
             DecodedJWT decodedRefreshToken = TokenManager.verifyToken(refreshToken);
             String newAccessToken = TokenManager.createAccessToken(decodedRefreshToken.getSubject(), username);
-            System.out.println("New Access Token: " + newAccessToken);
+            System.out.println("New Access Token::: " + newAccessToken);
             rtnmap.put("accesstoken", newAccessToken);
             rtnmap.put("status", "tokenrefreshed");
         } catch (JWTVerificationException e) {
