@@ -361,18 +361,19 @@ public class ServerConnection {
         return rtnmap;
     }
 
-    public JSONArray getManagers(String data) throws SQLException {
+    public JSONArray getUsers(String data) throws SQLException {
         JSONArray rtnlst = new JSONArray();
         Connection con = null;
         try {
             con = getConnection();
-            String SQL = "Select username,empid from userdetail where role in('admin','Project Manager','Team Leader')";
+            String SQL = "Select username,empid,role from userdetail";
             PreparedStatement pst = con.prepareStatement(SQL);
             ResultSet rs = pst.executeQuery();
             while (rs.next()) {
                 JSONObject js = new JSONObject();
                 js.put("name", rs.getString("username"));
                 js.put("empid", rs.getString("empid"));
+                js.put("role", rs.getString("role"));
                 rtnlst.put(js);
             }
         } catch (Exception e) {

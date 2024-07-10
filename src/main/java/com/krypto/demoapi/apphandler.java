@@ -215,12 +215,37 @@ public class apphandler {
     
     @POST
     @Path("/getEmpID")
-    public Response getEMPID(){
-        String jsondata="";
+    public Response getEMPID(String data){
+        String jsondata = "";
         try{
-            HashMap map = server.getempcode();
-            Gson gs = new Gson();
-            jsondata = gs.toJson(map);
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    HashMap map = server.getempcode();
+                    map.put("status", "success");
+                    map.put("userlist", jsondata);
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
         }catch(Exception e){
             e.printStackTrace();
         }
@@ -259,8 +284,8 @@ public class apphandler {
     }
     
     @POST
-    @Path("/getManagers")
-    public Response getManagers(String data){
+    @Path("/getUsers")
+    public Response getUsers(String data){
         String jsondata = "";
         try{
             JSONObject js = new JSONObject(data);
@@ -283,7 +308,7 @@ public class apphandler {
                     jsondata = gs.toJson(map);
                 } else if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
-                    JSONArray list = server.getManagers(data);
+                    JSONArray list = server.getUsers(data);
                     HashMap map = new HashMap();
                     map.put("status", "success");
                     map.put("userlist", list);
