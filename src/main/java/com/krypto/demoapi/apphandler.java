@@ -300,4 +300,89 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
+    
+    @POST
+    @Path("/getTeamMember")
+    public Response getTeamMember(String data){
+        String jsondata = "";
+        try{
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    JSONArray list = server.getusers(data);
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    map.put("userlist", list);
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
+    @POST
+    @Path("/saveTaskDetails")
+    public Response saveTaskDetails(String data){
+        String jsondata = "";
+        try{
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    HashMap taskmap = server.savetask(data);
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
 }
