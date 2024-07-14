@@ -24,16 +24,16 @@ import org.json.JSONObject;
 public class apphandler {
 
     /**
-     * Method handling HTTP GET requests. The returned object will be sent
-     * to the client as "text/plain" media type.
+     * Method handling HTTP GET requests. The returned object will be sent to
+     * the client as "text/plain" media type.
      *
      * @return String that will be returned as a text/plain response.
      */
     ServerConnection server = new ServerConnection();
-    
+
     @POST
     @Path("/login")
-    public Response login(String data)throws SQLException {
+    public Response login(String data) throws SQLException {
         String jsondata = "";
         HashMap map = new HashMap();
         map = server.loginCheck(data);
@@ -42,7 +42,7 @@ public class apphandler {
             map.remove("status");
             String userid = String.valueOf(map.get("userid"));
             String username = String.valueOf(map.get("username"));
-            String accessToken = TokenManager.createAccessToken(userid,username);
+            String accessToken = TokenManager.createAccessToken(userid, username);
             String refreshToken = TokenManager.createRefreshToken(userid);
             map.put("check", "success");
             map.put("accesstoken", accessToken);
@@ -53,43 +53,71 @@ public class apphandler {
         }
         Gson gs = new Gson();
         jsondata = gs.toJson(map);
-        System.out.println("THIS IS JSON DATA >>>"+jsondata);
+        System.out.println("THIS IS JSON DATA >>>" + jsondata);
         ResponseBuilder response = Response.ok();
         response.entity(jsondata);
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/usercreation")
-    public Response signup(String request) throws SQLException{
-        System.out.println("INSIDE REQUEST DATA : " + request);
+    public Response signup(String request) throws SQLException {
         String jsondata = "";
-        HashMap map = new HashMap();
-        if (server.newUserCheck(request)) {
-            boolean rtn = server.newUserSave(request);
-            if(rtn){
-                map.put("status","success");
-            }else{
-                map.put("status","unsuccessful");
+        try {
+            JSONObject js = new JSONObject(request);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    HashMap map = new HashMap();
+                    if (server.newUserCheck(request)) {
+                        boolean rtn = server.newUserSave(request);
+                        if (rtn) {
+                            map.put("status", "success");
+                        } else {
+                            map.put("status", "unsuccessful");
+                        }
+                    } else {
+                        map.put("status", "existing user");
+                    }
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                }
+
+            } else {
+                HashMap map = new HashMap();
+                map.put("access", "accessexpired");
             }
-        }else{
-            map.put("status","existing user");
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        Gson gs = new Gson();
-        jsondata = gs.toJson(map);
-        System.out.println("THIS IS JSON DATA >>>"+jsondata);
         ResponseBuilder response = Response.ok();
         response.entity(jsondata);
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/authCodeIntiation")
-    public Response authCodeIntiation(String data){
+    public Response authCodeIntiation(String data) {
         String jsondata = "";
-        try{
+        try {
             JSONObject js = new JSONObject(data);
             String accesstoken = js.getString("Accesstoken");
             String refreshToken = js.getString("RefreshToken");
@@ -117,7 +145,7 @@ public class apphandler {
                     jsondata = gs.toJson(mailMap);
                 }
 
-            }else{
+            } else {
                 HashMap map = new HashMap();
                 map.put("access", "accessexpired");
             }
@@ -130,16 +158,16 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/getauthcode")
-    public Response getauthcode(String data){
-        String jsondata="";
-        try{
+    public Response getauthcode(String data) {
+        String jsondata = "";
+        try {
             HashMap map = server.getauth(data);
             Gson gs = new Gson();
             jsondata = gs.toJson(map);
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         ResponseBuilder response = Response.ok();
@@ -147,13 +175,13 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/authCodeCheck")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response authCodeCheck(String data){
-        String jsondata="";
-        try{
+    public Response authCodeCheck(String data) {
+        String jsondata = "";
+        try {
             JSONObject js = new JSONObject(data);
             String accesstoken = js.getString("Accesstoken");
             String refreshToken = js.getString("RefreshToken");
@@ -161,7 +189,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                System.out.println("STATUS >>>"+status);
+                System.out.println("STATUS >>>" + status);
                 if (status.equalsIgnoreCase("sessionexpired")) {
                     HashMap map = new HashMap();
                     map.put("status", "sessionexpired");
@@ -191,20 +219,20 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/authCodeUpdate")
-    public Response authCodeUpdate(String data){
-        String jsondata="";
-        try{
+    public Response authCodeUpdate(String data) {
+        String jsondata = "";
+        try {
             HashMap map = new HashMap();
-            if(server.authCodeAvailable(data)){
+            if (server.authCodeAvailable(data)) {
                 map = server.authcodesave(data);
-            }else{
+            } else {
                 map.put("status", "loginSuccessful");
             }
-            
-        }catch(Exception e){
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
         ResponseBuilder response = Response.ok();
@@ -212,12 +240,12 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/getEmpID")
-    public Response getEMPID(String data){
+    public Response getEMPID(String data) {
         String jsondata = "";
-        try{
+        try {
             JSONObject js = new JSONObject(data);
             String accesstoken = js.getString("Accesstoken");
             String refreshToken = js.getString("RefreshToken");
@@ -246,7 +274,7 @@ public class apphandler {
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
                 }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         ResponseBuilder response = Response.ok();
@@ -254,8 +282,8 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
-    public HashMap accessVerify(String accesstoken,String refreshToken,String username){
+
+    public HashMap accessVerify(String accesstoken, String refreshToken, String username) {
         HashMap rtnmap = new HashMap();
         try {
             DecodedJWT decodedAccessToken = TokenManager.verifyToken(accesstoken);
@@ -263,13 +291,13 @@ public class apphandler {
             rtnmap.put("status", "success");
         } catch (JWTVerificationException e) {
             System.err.println("Access Token is invalid or expired.");
-            rtnmap = refreshVerify(refreshToken,username);
+            rtnmap = refreshVerify(refreshToken, username);
         }
         return rtnmap;
     }
-    
-    public HashMap refreshVerify(String refreshToken,String username){
-        HashMap rtnmap =new HashMap();
+
+    public HashMap refreshVerify(String refreshToken, String username) {
+        HashMap rtnmap = new HashMap();
         try {
             DecodedJWT decodedRefreshToken = TokenManager.verifyToken(refreshToken);
             String newAccessToken = TokenManager.createAccessToken(decodedRefreshToken.getSubject(), username);
@@ -282,12 +310,12 @@ public class apphandler {
         }
         return rtnmap;
     }
-    
+
     @POST
     @Path("/getUsers")
-    public Response getUsers(String data){
+    public Response getUsers(String data) {
         String jsondata = "";
-        try{
+        try {
             JSONObject js = new JSONObject(data);
             String accesstoken = js.getString("Accesstoken");
             String refreshToken = js.getString("RefreshToken");
@@ -317,7 +345,7 @@ public class apphandler {
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
                 }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         ResponseBuilder response = Response.ok();
@@ -325,12 +353,12 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/getTeamMember")
-    public Response getTeamMember(String data){
+    public Response getTeamMember(String data) {
         String jsondata = "";
-        try{
+        try {
             JSONObject js = new JSONObject(data);
             String accesstoken = js.getString("Accesstoken");
             String refreshToken = js.getString("RefreshToken");
@@ -360,7 +388,7 @@ public class apphandler {
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
                 }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         ResponseBuilder response = Response.ok();
@@ -368,12 +396,12 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-    
+
     @POST
     @Path("/saveTaskDetails")
-    public Response saveTaskDetails(String data){
+    public Response saveTaskDetails(String data) {
         String jsondata = "";
-        try{
+        try {
             JSONObject js = new JSONObject(data);
             String accesstoken = js.getString("Accesstoken");
             String refreshToken = js.getString("RefreshToken");
@@ -402,7 +430,7 @@ public class apphandler {
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
                 }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         ResponseBuilder response = Response.ok();
@@ -410,4 +438,136 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
+    
+    @POST
+    @Path("/getRoleDetails")
+    public Response getRoleDetails(String data) {
+        String jsondata = "";
+        try {
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    JSONArray rolearr = server.getroles();
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    map.put("roledetails", rolearr);
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
+    @POST
+    @Path("/saveRoles")
+    public Response saveRoles(String data) {
+        String jsondata = "";
+        try {
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    server.saveroles(data);
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
+    @POST
+    @Path("/getTaskDetails")
+    public Response getTaskDetails(String data) {
+        String jsondata = "";
+        try {
+            System.out.println("THIS IS TASK STRING DATA "+data);
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                System.out.println("THIS IS TOKEN STATUS >>"+status);
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    JSONArray taskarr = server.gettasks(js.getString(("empcode")));
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    map.put("taskdetails", taskarr);
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.out.println("THIS IS JSON DATA "+jsondata);
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
 }

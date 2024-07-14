@@ -58,11 +58,14 @@ public class ServerConnection {
         try {
             System.out.println("@@INSIDE NEW USER CHECK " + data);
             JSONObject js = new JSONObject(data);
+            JSONObject savejs = js.getJSONObject("userdetails");
+            System.out.println("thIS IS USEr DETAILS>>>"+savejs);
+            System.out.println("thIS IS USEr DETAILS>>>"+savejs.getString("username"));
             con = getConnection();
             PreparedStatement pst = null;
             String SQL = "select uid from userdetail where username=?";
             pst = con.prepareCall(SQL);
-            pst.setString(1, js.getString("username"));
+            pst.setString(1, savejs.getString("username"));
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
                 System.out.println("@@INSIDE userdetail check " + rs.getString("uid"));
@@ -84,19 +87,22 @@ public class ServerConnection {
         try {
             System.out.println("@@INSIDE NEW USER CHECK " + newData);
             JSONObject js = new JSONObject(newData);
-            String hashedPassword = passwordEncrypt(js.getString("password"));
+            System.out.println("THIS IS USERDETAISL >>"+js);
+            JSONObject bodyjs = js.getJSONObject("userdetails");
+            JSONObject reporttojs = bodyjs.getJSONObject("reportto");
+            String hashedPassword = passwordEncrypt(bodyjs.getString("password"));
             con = getConnection();
             String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto) values(?,?,?,?,?,?,?,?)";
             PreparedStatement pst = null;
             pst = con.prepareStatement(SQL);
-            pst.setString(1, js.getString("username"));
+            pst.setString(1, bodyjs.getString("username"));
             pst.setString(2, hashedPassword);
-            pst.setString(3, js.getString("emailid"));
-            pst.setString(4, js.getString("empid"));
-            pst.setString(5, js.getString("firstname"));
-            pst.setString(6, js.getString("lastname"));
-            pst.setString(7, js.getString("role"));
-            pst.setString(8, js.getString("reportto"));
+            pst.setString(3, bodyjs.getString("emailid"));
+            pst.setString(4, bodyjs.getString("empid"));
+            pst.setString(5, bodyjs.getString("firstname"));
+            pst.setString(6, bodyjs.getString("lastname"));
+            pst.setString(7, bodyjs.getString("role"));
+            pst.setString(8, reporttojs.getString("name"));
             pst.execute();
         } catch (Exception e) {
             rtnflag = false;
@@ -120,7 +126,7 @@ public class ServerConnection {
             JSONObject js = new JSONObject(loginData);
             String loginname = js.getString("username");
             System.out.println("THIS IS LOGINNAME " + loginname);
-            String SQL = "select uid,password,emailid,role from userdetail where username=?";
+            String SQL = "select uid,password,emailid,role,empid from userdetail where username=?";
             pst = con.prepareStatement(SQL);
             pst.setString(1, loginname);
             ResultSet rs = pst.executeQuery();
@@ -136,6 +142,7 @@ public class ServerConnection {
                     int userid = rs.getInt("uid");
                     rtnmap.put("userid", userid);
                     rtnmap.put("username", loginname);
+                    rtnmap.put("empcode", rs.getString("empid"));
                 }
             } else {
                 rtnmap.put("status", false);
@@ -431,7 +438,8 @@ public class ServerConnection {
             HashMap reporttomap = getReportToUserDetails(js.toString());
             int maxtaskcount = getmaxtaskcountdetails();
             System.out.println("MAX COUNT >>" + maxtaskcount);
-            String sql = "insert into taskdetails(taskid,empcode,reporttocmpcode,subject,deadline,createddate,subtopiccount)values(?,?,?,?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?)";
+            ArrayList<Integer> tasklist = new ArrayList();
+            String sql = "insert into taskdetails(taskid,empcode,reporttocmpcode,subject,deadline,createddate,subtopiccount,iscompleted)values(?,?,?,?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?,?)";
             PreparedStatement pst = con.prepareStatement(sql);
             for (int i = 0; i < assigneearr.length(); i++) {
                 JSONObject assignee = assigneearr.getJSONObject(i);
@@ -442,18 +450,22 @@ public class ServerConnection {
 
                 // Convert deadline string to Timestamp before setting the parameter
                 String deadlineStr = taskdata.getString("deadline");
-                
                 Date d1 = sdf.parse(deadlineStr);
                 Timestamp deadline = new Timestamp(d1.getTime()); // Parse deadline string using Timestamp
-
-                System.out.println("THIS IS DEADLINE >>>"+deadline);
                 pst.setTimestamp(5, deadline); // Set parameter 5 with the converted Timestamp
-
+                 
                 pst.setInt(6, taskdata.getInt("subtopicount"));
+                tasklist.add(maxtaskcount);
+                pst.setBoolean(7, false);
                 pst.addBatch();
+                maxtaskcount++;
             }
             pst.executeBatch();
 
+            if (taskdata.getInt("subtopicount") > 0) {
+                System.out.println("INSIDE SAVE SUB TASK DATA");
+                saveSubTaskDetails(taskdata.getJSONArray("subtask"), tasklist);
+            }
             rtnmap.put("Status", "success");
         } catch (Exception e) {
             e.printStackTrace();
@@ -526,5 +538,148 @@ public class ServerConnection {
         System.out.println("LOGIN RETURN FLAG >>" + rtnmap);
         return rtnmap;
     }
+    
+    public JSONArray getroles()throws SQLException{
+        JSONArray rolearr = new JSONArray();
+        Connection con=null;
+        try{
+            con = getConnection();
+            String SQL = "select id,rolename from roledetails";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            ResultSet rs = pst.executeQuery();
+            while(rs.next()){
+                JSONObject js = new JSONObject();
+                js.put("id", rs.getInt("id"));
+                js.put("value", rs.getString("rolename"));
+                rolearr.put(js);
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return rolearr;
+    }
+    
+    public void saveroles(String data) throws SQLException{
+        Connection con = null;
+        try{
+            JSONObject js = new JSONObject(data);
+            JSONArray roledetails = js.optJSONArray("roledetails");
+            System.out.println("THIS IS ROLE DETAILS >>"+roledetails);
+            con = getConnection();
+            String SQL = "insert into roledetails(rolename)values(?)";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            for(int i=0;i<roledetails.length();i++){
+                JSONObject role = new JSONObject(roledetails.get(i).toString());
+                System.out.println("THIS IS ROLE >>>"+role);
+                pst.setString(1, role.getString("value"));
+                pst.addBatch();
+            }
+            pst.executeBatch();
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+    }
+    
+    public JSONArray gettasks(String empcode) throws SQLException{
+        JSONArray taskarr = new JSONArray();
+        Connection con  =null;
+        try{
+            System.out.println("THIS IS EMP CODE>>>"+empcode);
+            con = getConnection();
+            String SQL = "select taskid,Subject,subtopiccount,deadline from taskdetails where empcode=? and iscompleted=false";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            pst.setString(1, empcode);
+            ResultSet rs = pst.executeQuery();
+            while(rs.next()){
+                JSONObject js = new JSONObject();
+                js.put("taskid", rs.getInt("taskid"));
+                js.put("Subject", rs.getString("subject"));
+                js.put("Subtopiccount", rs.getInt("subtopiccount"));
+                if(rs.getInt("subtopiccount")>0){
+                    js.put("subtasks", getsubtaskdetails(rs.getInt("taskid")));
+                }else{
+                    js.put("subtasks", new JSONArray());
+                }
+                js.put("deadline", rs.getString("deadline"));
+                taskarr.put(js);
+                
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return taskarr;
+    }
+    
+    public JSONArray getsubtaskdetails(int taskid) throws SQLException{
+        Connection con = null;
+        JSONArray subtaskarr = new JSONArray();
+        try{
+            con = getConnection();
+            String sql = "select subtaskid,subject,deadline,iscompleted from subtaskdetails where taskid=?";
+            PreparedStatement pst = con.prepareStatement(sql);
+            pst.setInt(1, taskid);
+            ResultSet rs = pst.executeQuery();
+            while(rs.next()){
+                JSONObject js = new JSONObject();
+                js.put("subtaskid", rs.getInt("subtaskid"));
+                js.put("subject", rs.getString("subject"));
+                js.put("deadline", rs.getString("deadline"));
+                js.put("iscompleted", rs.getBoolean("iscompleted"));
+                subtaskarr.put(js);
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return subtaskarr;
+    }
+    
+    public void saveSubTaskDetails(JSONArray subtaskarr,ArrayList<Integer> taskid) throws SQLException{
+        Connection con = null;
+        try{
+            System.out.println("INSIDE SUBTASK DETAILS"+subtaskarr);
+            con = getConnection();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+            String SQL = "insert into subtaskdetails(subject,deadline,createddate,taskid,iscompleted) values(?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?,?)";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            for(int j=0;j<taskid.size();j++){
+                for(int i=0;i<subtaskarr.length();i++){
+                JSONObject subtaskobj = subtaskarr.getJSONObject(i);
+                System.out.println("THIS IS INDIVIDUAL SUB TASK DETAILS >>"+subtaskobj);
+                pst.setString(1, subtaskobj.getString("subtaskheader"));
+                String deadlineStr = subtaskobj.getString("subtaskDeadline");
+                Date d1 = sdf.parse(deadlineStr);
+                Timestamp deadline = new Timestamp(d1.getTime()); // Parse deadline string using Timestamp
+                pst.setTimestamp(2, deadline);
+                pst.setInt(3, taskid.get(j));
+                pst.setBoolean(4, false);
+                pst.addBatch();
+            }
+            }
+            pst.executeBatch();
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+    }
 
+    
 }
