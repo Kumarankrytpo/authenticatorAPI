@@ -570,4 +570,96 @@ public class apphandler {
         return response.build();
     }
     
+    @POST
+    @Path("/getPendingTaskDetails")
+    public Response getPendingTaskDetails(String data) {
+        String jsondata = "";
+        try {
+            System.out.println("THIS IS TASK STRING DATA "+data);
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                System.out.println("THIS IS TOKEN STATUS >>"+status);
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    JSONArray taskarr = server.getpendingtasks(js.getString(("empcode")));
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    map.put("pendingtaskdetails", taskarr);
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.out.println("THIS IS JSON DATA "+jsondata);
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
+    
+    @POST
+    @Path("/getTaskNumbers")
+    public Response getTaskNumbers(String data) {
+        String jsondata = "";
+        try {
+            System.out.println("THIS IS TASK STRING DATA "+data);
+            JSONObject js = new JSONObject(data);
+            String accesstoken = js.getString("Accesstoken");
+            String refreshToken = js.getString("RefreshToken");
+            String username = js.getString("username");
+            if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
+                HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
+                String status = (String) accessMap.get("status");
+                System.out.println("THIS IS TOKEN STATUS >>"+status);
+                if (status.equalsIgnoreCase("sessionexpired")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "sessionexpired");
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
+                    HashMap map = new HashMap();
+                    map.put("status", "tokenrefreshed");
+                    map.put("token", accessMap.get("accesstoken"));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                } else if (status.equalsIgnoreCase("success")) {
+                    System.out.println("INSIDE GET MANAEGRS LIST ");
+                    JSONArray taskarr = server.gettasknumbers(js.getString(("empcode")));
+                    HashMap map = new HashMap();
+                    map.put("status", "success");
+                    map.put("ongoingtaskno", taskarr.get(0));
+                    map.put("overduetaskno", taskarr.get(1));
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(map);
+                    System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.out.println("THIS IS JSON DATA "+jsondata);
+        ResponseBuilder response = Response.ok();
+        response.entity(jsondata);
+        response.header("Access-Control-Allow-Origin", "*");
+        return response.build();
+    }
 }

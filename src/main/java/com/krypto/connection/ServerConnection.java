@@ -91,8 +91,9 @@ public class ServerConnection {
             JSONObject bodyjs = js.getJSONObject("userdetails");
             JSONObject reporttojs = bodyjs.getJSONObject("reportto");
             String hashedPassword = passwordEncrypt(bodyjs.getString("password"));
+            JSONObject role = bodyjs.optJSONObject("role");
             con = getConnection();
-            String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto) values(?,?,?,?,?,?,?,?)";
+            String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto,isotpenabled) values(?,?,?,?,?,?,?,?,?)";
             PreparedStatement pst = null;
             pst = con.prepareStatement(SQL);
             pst.setString(1, bodyjs.getString("username"));
@@ -101,8 +102,9 @@ public class ServerConnection {
             pst.setString(4, bodyjs.getString("empid"));
             pst.setString(5, bodyjs.getString("firstname"));
             pst.setString(6, bodyjs.getString("lastname"));
-            pst.setString(7, bodyjs.getString("role"));
+            pst.setString(7, role.getString("role"));
             pst.setString(8, reporttojs.getString("name"));
+            pst.setBoolean(9, reporttojs.getBoolean("isotp"));
             pst.execute();
         } catch (Exception e) {
             rtnflag = false;
@@ -550,7 +552,7 @@ public class ServerConnection {
             while(rs.next()){
                 JSONObject js = new JSONObject();
                 js.put("id", rs.getInt("id"));
-                js.put("value", rs.getString("rolename"));
+                js.put("role", rs.getString("rolename"));
                 rolearr.put(js);
             }
         }catch(Exception e){
@@ -681,5 +683,90 @@ public class ServerConnection {
         }
     }
 
+    public JSONArray getpendingtasks(String empcode) throws SQLException{
+        JSONArray pendingtaskarr = new JSONArray();
+        Connection con = null;
+        try{
+            con = getConnection();
+            Date currentDate = new Date();
+            ArrayList<Integer> taskidlist = new ArrayList();
+            String SQL = "select taskid from subtaskdetails where deadline<?";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            System.out.println("THIS IS DEADLINE "+new Timestamp(currentDate.getTime()));
+            pst.setTimestamp(1, new Timestamp(currentDate.getTime()));
+            ResultSet rs = pst.executeQuery();
+            while(rs.next()){
+                if(!taskidlist.contains(rs.getInt("taskid"))){
+                    taskidlist.add(rs.getInt("taskid"));
+                }
+            }
+            
+            SQL = "select taskid from taskdetails where subtopiccount=0 and deadline<?";
+            pst = null;
+            pst = con.prepareStatement(SQL);
+            pst.setTimestamp(1, new Timestamp(currentDate.getTime()));
+            rs = pst.executeQuery();
+            while(rs.next()){
+                if(!taskidlist.contains(rs.getInt("taskid"))){
+                    taskidlist.add(rs.getInt("taskid"));
+                }
+            }
+            System.out.println("THS IS TASKID LISTT>>"+taskidlist);
+            SQL = "select taskid,subject,subtopiccount,deadline from taskdetails where taskid=?";
+            for(int i=0;i<taskidlist.size();i++){
+                int taskid = taskidlist.get(i);
+                pst = null;
+                pst = con.prepareStatement(SQL);
+                pst.setInt(1, taskid);
+                rs = null;
+                rs = pst.executeQuery();
+                if(rs.next()){
+                    JSONObject js = new JSONObject();
+                    js.put("TaskName", rs.getInt("taskid"));
+                    js.put("subject", rs.getString("subject"));
+                    js.put("Taskid", rs.getInt("taskid"));
+                    js.put("Deadline", rs.getString("deadline"));
+                    js.put("SubTaskCount", rs.getInt("subtopiccount"));
+                    if(rs.getInt("subtopiccount")>0){
+                        js.put("Subtaskdetails", getsubtaskdetails(taskid));
+                    }
+                    pendingtaskarr.put(js);
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return pendingtaskarr;
+    }
     
+    public JSONArray gettasknumbers(String empcode) throws SQLException{
+        JSONArray tasknumber = new JSONArray();
+        Connection con = null;
+        try{
+            con = getConnection();
+            Date currentdate = new Date();
+            String SQL = "select count(1) from taskdetails where iscompleted=false and deadline>?";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            System.out.println("THIS IS CURRENT DATE "+new Timestamp(currentdate.getTime()));
+            pst.setTimestamp(1, new Timestamp(currentdate.getTime()));
+            ResultSet rs = pst.executeQuery();
+            if(rs.next()){
+                tasknumber.put(rs.getInt("count"));
+            }
+            
+            JSONArray pendingtaskarr = getpendingtasks(empcode);
+            tasknumber.put(pendingtaskarr.length());
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return tasknumber;
+    }
 }
