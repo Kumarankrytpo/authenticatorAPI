@@ -104,7 +104,7 @@ public class ServerConnection {
             pst.setString(6, bodyjs.getString("lastname"));
             pst.setString(7, role.getString("role"));
             pst.setString(8, reporttojs.getString("name"));
-            pst.setBoolean(9, reporttojs.getBoolean("isotp"));
+            pst.setBoolean(9, bodyjs.getBoolean("isotp"));
             pst.execute();
         } catch (Exception e) {
             rtnflag = false;
@@ -128,7 +128,7 @@ public class ServerConnection {
             JSONObject js = new JSONObject(loginData);
             String loginname = js.getString("username");
             System.out.println("THIS IS LOGINNAME " + loginname);
-            String SQL = "select uid,password,emailid,role,empid from userdetail where username=?";
+            String SQL = "select uid,password,emailid,role,empid,isotpenabled from userdetail where username=?";
             pst = con.prepareStatement(SQL);
             pst.setString(1, loginname);
             ResultSet rs = pst.executeQuery();
@@ -145,6 +145,7 @@ public class ServerConnection {
                     rtnmap.put("userid", userid);
                     rtnmap.put("username", loginname);
                     rtnmap.put("empcode", rs.getString("empid"));
+                    rtnmap.put("isotp", rs.getBoolean("isotpenabled"));
                 }
             } else {
                 rtnmap.put("status", false);
@@ -441,7 +442,7 @@ public class ServerConnection {
             int maxtaskcount = getmaxtaskcountdetails();
             System.out.println("MAX COUNT >>" + maxtaskcount);
             ArrayList<Integer> tasklist = new ArrayList();
-            String sql = "insert into taskdetails(taskid,empcode,reporttocmpcode,subject,deadline,createddate,subtopiccount,iscompleted)values(?,?,?,?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?,?)";
+            String sql = "insert into taskdetails(taskid,empcode,reporttocmpcode,subject,deadline,createddate,subtopiccount,iscompleted,summary)values(?,?,?,?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?,?,?)";
             PreparedStatement pst = con.prepareStatement(sql);
             for (int i = 0; i < assigneearr.length(); i++) {
                 JSONObject assignee = assigneearr.getJSONObject(i);
@@ -459,6 +460,7 @@ public class ServerConnection {
                 pst.setInt(6, taskdata.getInt("subtopicount"));
                 tasklist.add(maxtaskcount);
                 pst.setBoolean(7, false);
+                pst.setString(8, taskdata.getString("summary"));
                 pst.addBatch();
                 maxtaskcount++;
             }
@@ -768,5 +770,57 @@ public class ServerConnection {
             }
         }
         return tasknumber;
+    }
+    
+    public boolean setCompleteTask(JSONObject js) throws SQLException{
+        Connection con = null;
+        boolean rtnflag=false;
+        try{
+            con = getConnection();
+            String updatetask = "update taskdetails set iscompleted=true,completeddate=CURRENT_TIMESTAMP where taskid=? and empcode=?";
+            String empcode = js.getString("empcode");
+            int taskid = js.getInt("taskid");
+            PreparedStatement pst = con.prepareStatement(updatetask);
+            pst.setInt(1, taskid);
+            pst.setString(2, empcode);
+            pst.execute();
+            rtnflag=true;
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return rtnflag;
+    }
+    
+    public JSONArray getCompletedTask(JSONObject js) throws SQLException{
+        Connection con = null;
+        JSONArray taskarr = new JSONArray();
+        try{
+            con = getConnection();
+            String SQL = "select taskid,subject,deadline,completeddate,subtopiccount,rating from taskdetails where empcode=? and iscompleted=true";
+            PreparedStatement pst = con.prepareStatement(SQL);
+            pst.setString(1, js.getString("empcode"));
+            ResultSet rs = pst.executeQuery();
+            while(rs.next()){
+                JSONObject taskjs = new JSONObject();
+                taskjs.put("taskid", rs.getInt("taskid"));
+                taskjs.put("subject", rs.getString("subject"));
+                taskjs.put("deadline", rs.getString("deadline"));
+                taskjs.put("completeddate", rs.getString("completeddate"));
+                taskjs.put("subtaskcount", rs.getInt("subtopiccount"));
+                taskjs.put("rating", rs.getInt("rating"));
+                taskarr.put(taskjs);
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(con!=null){
+                con.close();
+            }
+        }
+        return taskarr;
     }
 }
