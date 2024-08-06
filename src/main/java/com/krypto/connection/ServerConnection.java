@@ -92,6 +92,7 @@ public class ServerConnection {
         Connection con = null;
         try {
             System.out.println("@@INSIDE NEW USER CHECK " + newData);
+            Date currentdate = new Date();
             JSONObject js = new JSONObject(newData);
             System.out.println("THIS IS USERDETAISL >>" + js);
             JSONObject bodyjs = js.getJSONObject("userdetails");
@@ -99,7 +100,7 @@ public class ServerConnection {
             String hashedPassword = passwordEncrypt(bodyjs.getString("password"));
             JSONObject role = bodyjs.optJSONObject("role");
             con = getConnection();
-            String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto,isotpenabled,reporttoempid) values(?,?,?,?,?,?,?,?,?,?)";
+            String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto,isotpenabled,reporttoempid,joiningdate) values(?,?,?,?,?,?,?,?,?,?,?)";
             PreparedStatement pst = null;
             pst = con.prepareStatement(SQL);
             pst.setString(1, bodyjs.getString("username"));
@@ -112,6 +113,7 @@ public class ServerConnection {
             pst.setString(8, reporttojs.getString("name"));
             pst.setBoolean(9, bodyjs.getBoolean("isotp"));
             pst.setString(10, bodyjs.getString("reporttoempid"));
+            pst.setTimestamp(11, new Timestamp(currentdate.getTime()));
             pst.execute();
         } catch (Exception e) {
             rtnflag = false;
@@ -586,8 +588,10 @@ public class ServerConnection {
             for (int i = 0; i < roledetails.length(); i++) {
                 JSONObject role = new JSONObject(roledetails.get(i).toString());
                 System.out.println("THIS IS ROLE >>>" + role);
-                pst.setString(1, role.getString("value"));
-                pst.addBatch();
+                if (role.length() == 1) {
+                    pst.setString(1, role.getString("role"));
+                    pst.addBatch();
+                }
             }
             pst.executeBatch();
         } catch (Exception e) {
@@ -604,10 +608,12 @@ public class ServerConnection {
         Connection con = null;
         try {
             System.out.println("THIS IS EMP CODE>>>" + empcode);
+            Date currentdate = new Date();
             con = getConnection();
-            String SQL = "select taskid,Subject,subtopiccount,deadline from taskdetails where empcode=? and iscompleted=false and extendrequired=false";
+            String SQL = "select taskid,Subject,subtopiccount,deadline from taskdetails where empcode=? and iscompleted=false and extendrequired=false and deadline>?";
             PreparedStatement pst = con.prepareStatement(SQL);
             pst.setString(1, empcode);
+            pst.setTimestamp(2, new Timestamp(currentdate.getTime()));
             ResultSet rs = pst.executeQuery();
             while (rs.next()) {
                 JSONObject js = new JSONObject();
