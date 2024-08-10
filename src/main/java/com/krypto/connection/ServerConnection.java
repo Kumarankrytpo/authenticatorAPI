@@ -4,12 +4,10 @@
  */
 package com.krypto.connection;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
+import com.krypto.Entities.AuthCode;
+import com.krypto.Entities.UserDetail;
 import de.mkammerer.argon2.Argon2;
 import de.mkammerer.argon2.Argon2Factory;
-import java.lang.ProcessBuilder.Redirect.Type;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -17,27 +15,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
-import javax.mail.Authenticator;
-import javax.mail.Message;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
+import java.util.*;
+
+import org.hibernate.Criteria;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import org.hibernate.criterion.Restrictions;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.WeekFields;
-import java.util.Locale;
 
 /**
  *
@@ -126,10 +114,13 @@ public class ServerConnection {
         return rtnflag;
     }
 
-    public HashMap loginCheck(String loginData) throws SQLException {
+
+    public HashMap loginCheck(String loginData){
         Connection con = null;
         boolean rtnflag = true;
         HashMap rtnmap = new HashMap();
+        Session session = null;
+        Transaction tx= null;
         try {
             System.out.println("LOGIN DATA >>>" + loginData);
             con = getConnection();
@@ -137,34 +128,39 @@ public class ServerConnection {
             JSONObject js = new JSONObject(loginData);
             String loginname = js.getString("username");
             System.out.println("THIS IS LOGINNAME " + loginname);
-            String SQL = "select uid,password,emailid,role,empid,isotpenabled from userdetail where username=?";
-            pst = con.prepareStatement(SQL);
-            pst.setString(1, loginname);
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                String hashedPassword = rs.getString("password");
-                System.out.println("THIS IS HASHAED " + hashedPassword);
-                rtnflag = loginDecrypt(hashedPassword, js.get("password").toString());
+
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            Criteria criteria = session.createCriteria(UserDetail.class);
+            criteria.add(Restrictions.eq("username",loginname));
+
+            List loginuser = criteria.list();
+
+            if(loginuser.size()>0){
+                UserDetail user =(UserDetail) loginuser.get(0);
+                rtnflag = loginDecrypt(user.getPassword(), js.get("password").toString());
                 rtnmap.put("status", rtnflag);
                 if (rtnflag) {
-                    String mailid = rs.getString("emailid");
+                    String mailid = user.getEmailid();
                     rtnmap.put("emailid", mailid);
-                    rtnmap.put("role", rs.getString("role"));
-                    int userid = rs.getInt("uid");
+                    rtnmap.put("role", user.getRole());
+                    int userid = user.getUid();
                     rtnmap.put("userid", userid);
                     rtnmap.put("username", loginname);
-                    rtnmap.put("empcode", rs.getString("empid"));
-                    rtnmap.put("isotp", rs.getBoolean("isotpenabled"));
+                    rtnmap.put("empcode", user.getEmpid());
+                    rtnmap.put("isotp", user.isIsotpenabled());
                 }
-            } else {
+            }else{
                 rtnmap.put("status", false);
             }
+            tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            if (con != null) {
-                con.close();
+            if(tx!=null){
+                tx.rollback();
             }
+        } finally {
+            session.close();
         }
         System.out.println("LOGIN RETURN FLAG >>" + rtnmap);
         return rtnmap;
@@ -201,11 +197,19 @@ public class ServerConnection {
         System.out.println("INSIDE AUTH COde Creation");
         Connection con = null;
         HashMap rtnmap = new HashMap();
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            con = getConnection();
+            JSONObject js = new JSONObject(data);
             Random rand = new Random();
             int autCode = rand.nextInt((999998 - 100000));
-            JSONObject js = new JSONObject(data);
+            AuthCode auth = new AuthCode(js.getInt("userid"),autCode);
+            session.save(auth);
+
+            con = getConnection();
+
+
+
             deleteAuthCode(js.getInt("userid"), con);
             String SQL = "insert into authCode(uid,code) values(?,?)";
             PreparedStatement pst = con.prepareStatement(SQL);
@@ -224,52 +228,7 @@ public class ServerConnection {
         return rtnmap;
     }
 
-    public HashMap mailsend(HashMap map) {
-        HashMap rtnmap = new HashMap();
-        try {
-            Properties prop = new Properties();
-            prop.put("mail.smtp.auth", "true");
-            prop.put("mail.smtp.starttls.enable", "true");
-            prop.put("mail.smtp.host", "smtp.gmail.com");
-            prop.put("mail.smtp.port", "587");
-            String username = "kumarannathan871999@gmail.com";
-            String password = "xwxlywcstlppuebx";
 
-            Session session = Session.getDefaultInstance(prop, new Authenticator() {
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(username, password);
-                }
-            });
-
-            Message message = prepareMailMessage(session, username, map);
-            Transport.send(message);
-            rtnmap.put("authcode", map.get("authcode").toString());
-            rtnmap.put("userid", map.get("userid").toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return rtnmap;
-    }
-
-    public Message prepareMailMessage(Session session, String fromid, HashMap map) {
-        Message message = new MimeMessage(session);
-        try {
-            message.setFrom(new InternetAddress(fromid));
-            message.setRecipient(Message.RecipientType.TO, new InternetAddress(map.get("emailid").toString()));
-            message.setSubject("Authenticator Auth Code");
-            String body = "Please find the authenticator code <br/> " + map.get("authcode").toString();
-
-            message.setContent("This is authCode " + body, "text/html");
-
-            message.setContent("This is authCode " + body, "text/html");
-
-            message.setContent("This is authCode " + body, "text/html");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return message;
-    }
 
     public HashMap getauth(String data) throws SQLException {
         Connection con = null;

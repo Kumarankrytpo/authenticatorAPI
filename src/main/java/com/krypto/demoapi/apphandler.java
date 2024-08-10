@@ -3,6 +3,7 @@ package com.krypto.demoapi;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.google.gson.Gson;
+import com.krypto.Mail.mailSend;
 import com.krypto.connection.ServerConnection;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -30,6 +31,7 @@ public class apphandler {
      * @return String that will be returned as a text/plain response.
      */
     ServerConnection server = new ServerConnection();
+    mailSend mail = new mailSend();
 
     @POST
     @Path("/login")
@@ -140,7 +142,7 @@ public class apphandler {
                     HashMap map = server.authcodesave(data);
                     map.put("status", "success");
                     map.put("emailid", js.getString("emailid"));
-                    HashMap mailMap = server.mailsend(map);
+                    HashMap mailMap = mail.mailsend(map);
                     Gson gs = new Gson();
                     jsondata = gs.toJson(mailMap);
                 }
