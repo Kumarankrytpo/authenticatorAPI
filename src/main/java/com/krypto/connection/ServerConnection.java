@@ -17,6 +17,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import org.hibernate.Criteria;
+import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.criterion.Projection;
@@ -400,26 +401,42 @@ public class ServerConnection {
     public JSONArray getusers(String data) throws SQLException {
         JSONArray rtnarr = new JSONArray();
         Connection con = null;
+        Session session = null;
+        Transaction tx = null;
         try {
-            System.out.println("@@INSIDE GET USERS" + data);
-            con = getConnection();
             JSONObject js = new JSONObject(data);
-            String usersql = "select username,empid from userdetail where reportto=?";
-            PreparedStatement pst = con.prepareCall(usersql);
-            pst.setString(1, js.getString("user"));
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            Query q = session.createQuery("from userdetail where reportto=:empid");
+            q.setParameter("empid",js.getString("user"));
+            List<UserDetail> users = q.list();
+
+            for(UserDetail user : users){
                 JSONObject jsobj = new JSONObject();
-                jsobj.put("value", rs.getString("username"));
-                jsobj.put("empid", rs.getString("empid"));
+                jsobj.put("value", user.getUsername());
+                jsobj.put("empid", user.getEmpid());
                 rtnarr.put(jsobj);
             }
+            tx.commit();
+
+//            System.out.println("@@INSIDE GET USERS" + data);
+//            con = getConnection();
+//
+//            String usersql = "select username,empid from userdetail where reportto=?";
+//            PreparedStatement pst = con.prepareCall(usersql);
+//            pst.setString(1, js.getString("user"));
+//            ResultSet rs = pst.executeQuery();
+//            while (rs.next()) {
+//                JSONObject jsobj = new JSONObject();
+//                jsobj.put("value", rs.getString("username"));
+//                jsobj.put("empid", rs.getString("empid"));
+//                rtnarr.put(jsobj);
+//            }
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rtnarr;
     }
@@ -485,32 +502,6 @@ public class ServerConnection {
             rtnmap.put("Status", "success");
 
             tx.commit();
-//            pst.setBoolean(4, false);
-//
-//
-//            System.out.println("@@INSIDE GET USERS" + data);
-//            con = getConnection();
-//
-//
-//            System.out.println("THIS IS JSON ARRAY >>" + assigneearr);
-//
-//            System.out.println("MAX COUNT >>" + maxtaskcount);
-//            ArrayList<Integer> tasklist = new ArrayList();
-//            String sql = "insert into taskdetails(taskid,empcode,reporttocmpcode,subject,deadline,createddate,subtopiccount,iscompleted,summary)values(?,?,?,?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?,?,?)";
-//            PreparedStatement pst = con.prepareStatement(sql);
-//            for (int i = 0; i < assigneearr.length(); i++) {
-//                JSONObject assignee = assigneearr.getJSONObject(i);
-//
-//                tasklist.add(maxtaskcount);
-//                maxtaskcount++;
-//            }
-//            pst.executeBatch();
-//
-//            if (taskdata.getInt("subtopicount") > 0) {
-//                System.out.println("INSIDE SAVE SUB TASK DATA");
-//                saveSubTaskDetails(taskdata.getJSONArray("subtask"), tasklist);
-//            }
-//            rtnmap.put("Status", "success");
         } catch (Exception e) {
             e.printStackTrace();
             rtnmap.put("Status", "failed");
@@ -666,34 +657,39 @@ public class ServerConnection {
     public JSONArray gettasks(String empcode) throws SQLException {
         JSONArray taskarr = new JSONArray();
         Connection con = null;
+        Session session = null;
+        Transaction tx = null;
         try {
-            System.out.println("THIS IS EMP CODE>>>" + empcode);
             Date currentdate = new Date();
-            con = getConnection();
-            String SQL = "select taskid,Subject,subtopiccount,deadline from taskdetails where empcode=? and iscompleted=false and extendrequired=false and deadline>?";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            pst.setString(1, empcode);
-            pst.setTimestamp(2, new Timestamp(currentdate.getTime()));
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            Criteria crt = session.createCriteria(TaskDetails.class);
+            crt.add(Restrictions.eq("empcode",empcode));
+            crt.add(Restrictions.eq("iscompleted",false));
+            crt.add(Restrictions.eq("extendrequired",false));
+            crt.add(Restrictions.gt("deadline",new Timestamp(currentdate.getTime())));
+
+            List<TaskDetails> tasks = crt.list();
+            for(TaskDetails task : tasks){
                 JSONObject js = new JSONObject();
-                js.put("taskid", rs.getInt("taskid"));
-                js.put("Subject", rs.getString("subject"));
-                js.put("Subtopiccount", rs.getInt("subtopiccount"));
-                if (rs.getInt("subtopiccount") > 0) {
-                    js.put("subtasks", getsubtaskdetails(rs.getInt("taskid")));
+                js.put("taskid", task.getTaskid());
+                js.put("Subject", task.getSubject());
+                js.put("Subtopiccount", task.getSubtopiccount());
+                if (task.getSubtopiccount() > 0) {
+                    js.put("subtasks", getsubtaskdetails(task.getTaskid()));
                 } else {
                     js.put("subtasks", new JSONArray());
                 }
-                js.put("deadline", rs.getString("deadline"));
+                js.put("deadline", task.getDeadline());
                 taskarr.put(js);
             }
+
+            tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return taskarr;
     }
@@ -701,26 +697,31 @@ public class ServerConnection {
     public JSONArray getsubtaskdetails(int taskid) throws SQLException {
         Connection con = null;
         JSONArray subtaskarr = new JSONArray();
+        Session session=null;
+        Transaction tx = null;
         try {
-            con = getConnection();
-            String sql = "select subtaskid,subject,deadline,iscompleted from subtaskdetails where taskid=? and extendrequired=false";
-            PreparedStatement pst = con.prepareStatement(sql);
-            pst.setInt(1, taskid);
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            Criteria crt = session.createCriteria(SubtaskDetails.class);
+            crt.add(Restrictions.eq("taskid",taskid));
+            crt.add(Restrictions.eq("extendrequired",false));
+            crt.add(Restrictions.eq("iscompleted",false));
+            List<SubtaskDetails> subtasks = crt.list();
+
+            for(SubtaskDetails subtask : subtasks){
                 JSONObject js = new JSONObject();
-                js.put("subtaskid", rs.getInt("subtaskid"));
-                js.put("subject", rs.getString("subject"));
-                js.put("deadline", rs.getString("deadline"));
-                js.put("iscompleted", rs.getBoolean("iscompleted"));
+                js.put("subtaskid", subtask.getSubtaskid());
+                js.put("subject", subtask.getSubject());
+                js.put("deadline", subtask.getDeadline());
+                js.put("iscompleted", subtask.isIscompleted());
                 subtaskarr.put(js);
             }
+            tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return subtaskarr;
     }
@@ -759,62 +760,58 @@ public class ServerConnection {
 
     public JSONArray getpendingtasks(String empcode) throws SQLException {
         JSONArray pendingtaskarr = new JSONArray();
-        Connection con = null;
+        Session session = null;
+        Transaction tx = null;
         try {
-            con = getConnection();
             Date currentDate = new Date();
             ArrayList<Integer> taskidlist = new ArrayList();
-            String SQL = "select s.taskid from subtaskdetails s inner join taskdetails t on s.taskid=t.taskid where s.deadline<? and s.extendrequired=false and t.empcode=?";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            System.out.println("THIS IS DEADLINE " + new Timestamp(currentDate.getTime()));
-            pst.setTimestamp(1, new Timestamp(currentDate.getTime()));
-            pst.setString(2, empcode);
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
-                if (!taskidlist.contains(rs.getInt("taskid"))) {
-                    taskidlist.add(rs.getInt("taskid"));
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            Query q = session.createQuery("from subtaskdetails s inner join taskdetails t on s.taskid=t.taskid where s.deadline<:deadline and s.extendrequired=false and t.empcode=:empcode");
+            q.setParameter("deadline",new Timestamp(currentDate.getTime()));
+            q.setParameter("empcode",empcode);
+            List<SubtaskDetails> subtasks = q.list();
+            for(SubtaskDetails st : subtasks){
+                if (!taskidlist.contains(st.getSubtaskid())) {
+                    taskidlist.add(st.getSubtaskid());
                 }
             }
 
-            SQL = "select taskid from taskdetails where subtopiccount=0 and deadline<? and extendrequired=false and empcode=?";
-            pst = null;
-            pst = con.prepareStatement(SQL);
-            pst.setTimestamp(1, new Timestamp(currentDate.getTime()));
-            pst.setString(2, empcode);
-            rs = pst.executeQuery();
-            while (rs.next()) {
-                if (!taskidlist.contains(rs.getInt("taskid"))) {
-                    taskidlist.add(rs.getInt("taskid"));
+            Query q1 = session.createQuery("from taskdetails where subtopiccount=0 and deadline<:deadline and extendrequired=false and empcode=:empcode");
+            q1.setParameter("deadline",new Timestamp(currentDate.getTime()));
+            q1.setParameter("empcode",empcode);
+            List<TaskDetails> tasks = q1.list();
+
+            for(TaskDetails t : tasks){
+                if (!taskidlist.contains(t.getTaskid())) {
+                    taskidlist.add(t.getTaskid());
                 }
             }
+
             System.out.println("THS IS TASKID LISTT>>" + taskidlist);
-            SQL = "select taskid,subject,subtopiccount,deadline from taskdetails where taskid=?";
+            Query q3 = session.createQuery("from taskdetails where taskid=:taskid and empcode=:empcode");
             for (int i = 0; i < taskidlist.size(); i++) {
                 int taskid = taskidlist.get(i);
-                pst = null;
-                pst = con.prepareStatement(SQL);
-                pst.setInt(1, taskid);
-                rs = null;
-                rs = pst.executeQuery();
-                if (rs.next()) {
-                    JSONObject js = new JSONObject();
-                    js.put("TaskName", rs.getInt("taskid"));
-                    js.put("subject", rs.getString("subject"));
-                    js.put("Taskid", rs.getInt("taskid"));
-                    js.put("Deadline", rs.getString("deadline"));
-                    js.put("SubTaskCount", rs.getInt("subtopiccount"));
-                    if (rs.getInt("subtopiccount") > 0) {
-                        js.put("Subtaskdetails", getsubtaskdetails(taskid));
-                    }
-                    pendingtaskarr.put(js);
+                q3.setParameter("taskid",taskid);
+                q3.setParameter("empcode",empcode);
+                TaskDetails td =(TaskDetails) q3.uniqueResult();
+                JSONObject js = new JSONObject();
+                js.put("TaskName", td.getTaskid());
+                js.put("subject", td.getSubject());
+                js.put("Taskid", td.getTaskid());
+                js.put("Deadline", td.getDeadline());
+                js.put("SubTaskCount", td.getSubtopiccount());
+                if (td.getSubtopiccount() > 0) {
+                    js.put("Subtaskdetails", getsubtaskdetails(taskid));
                 }
+                pendingtaskarr.put(js);
             }
+            tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return pendingtaskarr;
     }
@@ -860,22 +857,37 @@ public class ServerConnection {
     public boolean setCompleteTask(JSONObject js) throws SQLException {
         Connection con = null;
         boolean rtnflag = false;
+        Session session = null;
+        Transaction tx = null;
         try {
-            con = getConnection();
-            String updatetask = "update taskdetails set iscompleted=true,completeddate=CURRENT_TIMESTAMP where taskid=? and empcode=?";
             String empcode = js.getString("empcode");
             int taskid = js.getInt("taskid");
-            PreparedStatement pst = con.prepareStatement(updatetask);
-            pst.setInt(1, taskid);
-            pst.setString(2, empcode);
-            pst.execute();
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            Query q = session.createQuery("from taskdetails where taskid=:taskid and empcode=:empid");
+            q.setParameter("taskid",taskid);
+            q.setParameter("empid",empcode);
+            TaskDetails td =(TaskDetails) q.uniqueResult();
+            td.setIscompleted(true);
+            td.setCompleteddate(new Date());
+
+            tx.commit();
             rtnflag = true;
+
+//            con = getConnection();
+//            String updatetask = "update taskdetails set iscompleted=true,completeddate=CURRENT_TIMESTAMP where taskid=? and empcode=?";
+//
+//            PreparedStatement pst = con.prepareStatement(updatetask);
+//            pst.setInt(1, taskid);
+//            pst.setString(2, empcode);
+//            pst.execute();
+
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
+            rtnflag = false;
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rtnflag;
     }
@@ -883,7 +895,13 @@ public class ServerConnection {
     public JSONArray getCompletedTask(JSONObject js) throws SQLException {
         Connection con = null;
         JSONArray taskarr = new JSONArray();
+        Session session = null;
+        Transaction tx = null;
         try {
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+
+
             con = getConnection();
             String SQL = "select taskid,subject,deadline,completeddate,subtopiccount,rating from taskdetails where empcode=? and iscompleted=true";
             PreparedStatement pst = con.prepareStatement(SQL);

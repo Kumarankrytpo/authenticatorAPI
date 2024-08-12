@@ -1,10 +1,8 @@
 package com.krypto.Entities;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.util.Date;
+import java.util.List;
 
 @Entity
 @Table(name="taskdetails")
@@ -44,9 +42,15 @@ public class TaskDetails {
     @Column(name="extendrequired")
     private boolean extendrequired;
 
+    @Column(name="completeddate")
+    private Date completeddate;
+
+    @OneToMany(mappedBy = "taskid")
+    private List<SubtaskDetails> subtaks;
+
     public TaskDetails(){}
 
-    public TaskDetails(int taskid, String empcode, String reporttocmpcode, String subject, Date deadline, Date createddate, int subtopiccount, boolean iscompleted, int rating, String summary, boolean extendrequired) {
+    public TaskDetails(int taskid, String empcode, String reporttocmpcode, String subject, Date deadline, Date createddate, int subtopiccount, boolean iscompleted, int rating, String summary, boolean extendrequired, Date completeddate, List<SubtaskDetails> subtaks) {
         this.taskid = taskid;
         this.empcode = empcode;
         this.reporttocmpcode = reporttocmpcode;
@@ -58,6 +62,8 @@ public class TaskDetails {
         this.rating = rating;
         this.summary = summary;
         this.extendrequired = extendrequired;
+        this.completeddate = completeddate;
+        this.subtaks = subtaks;
     }
 
     public int getTaskid() {
@@ -146,5 +152,21 @@ public class TaskDetails {
 
     public void setExtendrequired(boolean extendrequired) {
         this.extendrequired = extendrequired;
+    }
+
+    public Date getCompleteddate() {
+        return completeddate;
+    }
+
+    public void setCompleteddate(Date completeddate) {
+        this.completeddate = completeddate;
+    }
+
+    public List<SubtaskDetails> getSubtaks() {
+        return subtaks;
+    }
+
+    public void setSubtaks(List<SubtaskDetails> subtaks) {
+        this.subtaks = subtaks;
     }
 }
