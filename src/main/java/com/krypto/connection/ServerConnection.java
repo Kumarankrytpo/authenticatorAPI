@@ -4,8 +4,7 @@
  */
 package com.krypto.connection;
 
-import com.krypto.Entities.AuthCode;
-import com.krypto.Entities.UserDetail;
+import com.krypto.Entities.*;
 import de.mkammerer.argon2.Argon2;
 import de.mkammerer.argon2.Argon2Factory;
 import java.sql.Connection;
@@ -20,6 +19,8 @@ import java.util.*;
 import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.criterion.Projection;
+import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -48,68 +49,91 @@ public class ServerConnection {
 
     public boolean newUserCheck(String data) throws SQLException {
         boolean rtnflag = true;
-        Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            System.out.println("@@INSIDE NEW USER CHECK " + data);
             JSONObject js = new JSONObject(data);
             JSONObject savejs = js.getJSONObject("userdetails");
-            System.out.println("thIS IS USEr DETAILS>>>" + savejs);
-            System.out.println("thIS IS USEr DETAILS>>>" + savejs.getString("username"));
-            con = getConnection();
-            PreparedStatement pst = null;
-            String SQL = "select uid from userdetail where username=?";
-            pst = con.prepareCall(SQL);
-            pst.setString(1, savejs.getString("username"));
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                System.out.println("@@INSIDE userdetail check " + rs.getString("uid"));
+            UserDetail user = session.get(UserDetail.class,savejs.getString("username"));
+            if(user!=null && user.getUsername().length()>0){
                 rtnflag = false;
             }
+            tx.commit();
+//            System.out.println("@@INSIDE NEW USER CHECK " + data);
+//
+//            System.out.println("thIS IS USEr DETAILS>>>" + savejs);
+//            System.out.println("thIS IS USEr DETAILS>>>" + savejs.getString("username"));
+//            con = getConnection();
+//            PreparedStatement pst = null;
+//            String SQL = "select uid from userdetail where username=?";
+//            pst = con.prepareCall(SQL);
+//            pst.setString(1, savejs.getString("username"));
+//            ResultSet rs = pst.executeQuery();
+//            if (rs.next()) {
+//                System.out.println("@@INSIDE userdetail check " + rs.getString("uid"));
+//                rtnflag = false;
+//            }
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rtnflag;
     }
 
     public boolean newUserSave(String newData) throws SQLException {
         boolean rtnflag = true;
-        Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            System.out.println("@@INSIDE NEW USER CHECK " + newData);
-            Date currentdate = new Date();
             JSONObject js = new JSONObject(newData);
-            System.out.println("THIS IS USERDETAISL >>" + js);
             JSONObject bodyjs = js.getJSONObject("userdetails");
             JSONObject reporttojs = bodyjs.getJSONObject("reportto");
             String hashedPassword = passwordEncrypt(bodyjs.getString("password"));
             JSONObject role = bodyjs.optJSONObject("role");
-            con = getConnection();
-            String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto,isotpenabled,reporttoempid,joiningdate) values(?,?,?,?,?,?,?,?,?,?,?)";
-            PreparedStatement pst = null;
-            pst = con.prepareStatement(SQL);
-            pst.setString(1, bodyjs.getString("username"));
-            pst.setString(2, hashedPassword);
-            pst.setString(3, bodyjs.getString("emailid"));
-            pst.setString(4, bodyjs.getString("empid"));
-            pst.setString(5, bodyjs.getString("firstname"));
-            pst.setString(6, bodyjs.getString("lastname"));
-            pst.setString(7, role.getString("role"));
-            pst.setString(8, reporttojs.getString("name"));
-            pst.setBoolean(9, bodyjs.getBoolean("isotp"));
-            pst.setString(10, bodyjs.getString("reporttoempid"));
-            pst.setTimestamp(11, new Timestamp(currentdate.getTime()));
-            pst.execute();
+            Date currentdate = new Date();
+
+            UserDetail userdetail = new UserDetail();
+            userdetail.setUsername(bodyjs.getString("username"));
+            userdetail.setPassword(hashedPassword);
+            userdetail.setEmailid(bodyjs.getString("emailid"));
+            userdetail.setEmpid(bodyjs.getString("empid"));
+            userdetail.setFirstname(bodyjs.getString("firstname"));
+            userdetail.setLastname(bodyjs.getString("lastname"));
+            userdetail.setRole(role.getString("role"));
+            userdetail.setReportto(reporttojs.getString("name"));
+            userdetail.setIsotpenabled(bodyjs.getBoolean("isotp"));
+            userdetail.setReporttoempid(bodyjs.getString("reporttoempid"));
+            userdetail.setJoiningdate(new Timestamp(currentdate.getTime()));
+            session.save(userdetail);
+
+
+            System.out.println("@@INSIDE NEW USER CHECK " + newData);
+            tx.commit();
+//
+//            con = getConnection();
+//            String SQL = "insert into userdetail(username,password,emailid,empid,firstname,lastname,role,reportto,isotpenabled,reporttoempid,joiningdate) values(?,?,?,?,?,?,?,?,?,?,?)";
+//            PreparedStatement pst = null;
+//            pst = con.prepareStatement(SQL);
+//            pst.setString(1, bodyjs.getString("username"));
+//            pst.setString(2, hashedPassword);
+//            pst.setString(3, bodyjs.getString("emailid"));
+//            pst.setString(4, bodyjs.getString("empid"));
+//            pst.setString(5, bodyjs.getString("firstname"));
+//            pst.setString(6, bodyjs.getString("lastname"));
+//            pst.setString(7, role.getString("role"));
+//            pst.setString(8, reporttojs.getString("name"));
+//            pst.setBoolean(9, bodyjs.getBoolean("isotp"));
+//            pst.setString(10, bodyjs.getString("reporttoempid"));
+//            pst.setTimestamp(11, new Timestamp(currentdate.getTime()));
+//            pst.execute();
         } catch (Exception e) {
             rtnflag = false;
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rtnflag;
     }
@@ -204,31 +228,24 @@ public class ServerConnection {
             Random rand = new Random();
             int autCode = rand.nextInt((999998 - 100000));
             AuthCode auth = new AuthCode(js.getInt("userid"),autCode);
+            AuthCode deleteuser = new AuthCode();
+            deleteuser.setUid(js.getInt("userid"));
+            session.delete(deleteuser);
             session.save(auth);
-
-            con = getConnection();
-
-
-
-            deleteAuthCode(js.getInt("userid"), con);
-            String SQL = "insert into authCode(uid,code) values(?,?)";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            pst.setInt(1, js.getInt("userid"));
-            pst.setInt(2, autCode);
-            pst.execute();
+            tx.commit();
             rtnmap.put("authcode", autCode);
             rtnmap.put("userid", js.getInt("userid"));
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
             if (con != null) {
                 con.close();
             }
+            session.close();
         }
         return rtnmap;
     }
-
-
 
     public HashMap getauth(String data) throws SQLException {
         Connection con = null;
@@ -254,42 +271,31 @@ public class ServerConnection {
     }
 
     public HashMap authCodeCheck(String data) throws SQLException {
-        Connection con = null;
         HashMap rtnmap = new HashMap();
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            con = getConnection();
             JSONObject js = new JSONObject(data);
             System.out.println("THIS IS JS " + js);
-            String SQL = "select code from authCode where uid=? and code=?";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            pst.setInt(1, js.getInt("userid"));
-            pst.setString(2, js.getString(("authcode")));
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
+            Criteria crt = session.createCriteria(AuthCode.class);
+            crt.add(Restrictions.eq("uid",js.getInt("userid")));
+            crt.add(Restrictions.eq("code",js.getString("authcode")));
+            List authlist = crt.list();
+            if(authlist!=null && authlist.size()>0){
+                AuthCode auth =(AuthCode) authlist.get(0);
                 rtnmap.put("status", "success");
-                deleteAuthCode(js.getInt(("userid")), con);
+                session.delete(auth);
             }
+            tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rtnmap;
     }
 
-    public void deleteAuthCode(int userid, Connection con1) throws SQLException {
-        Connection con = con1;
-        try {
-            String sql = "delete from authcode where uid=?";
-            PreparedStatement pst = con.prepareStatement(sql);
-            pst.setInt(1, userid);
-            pst.execute();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     public boolean authCodeAvailable(String data) throws SQLException {
         boolean rtnflag = true;
@@ -319,22 +325,33 @@ public class ServerConnection {
     public HashMap getempcode() throws SQLException {
         HashMap rtnmap = new HashMap();
         Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            con = getConnection();
-            String SQL = "select count(1) from userdetail";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                rtnmap.put("empcode", rs.getInt("count") + 1);
-            } else {
+            Criteria crt = session.createCriteria(UserDetail.class);
+            crt.setProjection(Projections.rowCount());
+            List user = crt.list();
+            if(user!=null && user.size()>0){
+                int count = Integer.parseInt(user.get(0).toString());
+                rtnmap.put("empcode", count + 1);
+            }else{
                 rtnmap.put("empcode", 1);
             }
+            tx.commit();
+//            con = getConnection();
+//            String SQL = "select count(1) from userdetail";
+//            PreparedStatement pst = con.prepareStatement(SQL);
+//            ResultSet rs = pst.executeQuery();
+//            if (rs.next()) {
+//
+//            } else {
+//
+//            }
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rtnmap;
     }
@@ -342,24 +359,39 @@ public class ServerConnection {
     public JSONArray getUsers(String data) throws SQLException {
         JSONArray rtnlst = new JSONArray();
         Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            con = getConnection();
-            String SQL = "Select username,empid,role from userdetail";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
+            Criteria crt = session.createCriteria(UserDetail.class);
+            crt.setProjection(Projections.projectionList().add(Projections.property("username"))
+                    .add(Projections.property("empid"))
+                    .add(Projections.property("role")));
+            List<UserDetail> userlist = crt.list();
+            for(int i=0;i<userlist.size();i++){
+                UserDetail user = userlist.get(0);
                 JSONObject js = new JSONObject();
-                js.put("name", rs.getString("username"));
-                js.put("empid", rs.getString("empid"));
-                js.put("role", rs.getString("role"));
+                js.put("name", user.getUsername());
+                js.put("empid", user.getEmpid());
+                js.put("role", user.getRole());
                 rtnlst.put(js);
             }
+            tx.commit();
+//            con = getConnection();
+//            String SQL = "Select username,empid,role from userdetail";
+//            PreparedStatement pst = con.prepareStatement(SQL);
+//            ResultSet rs = pst.executeQuery();
+//            while (rs.next()) {
+//                JSONObject js = new JSONObject();
+//                js.put("name", rs.getString("username"));
+//                js.put("empid", rs.getString("empid"));
+//                js.put("role", rs.getString("role"));
+//                rtnlst.put(js);
+//            }
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         System.out.println("THIS IS USER LIST " + rtnlst);
         return rtnlst;
@@ -395,82 +427,134 @@ public class ServerConnection {
     public HashMap savetask(String data) throws SQLException {
         HashMap rtnmap = new HashMap();
         Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            System.out.println("@@INSIDE GET USERS" + data);
-            con = getConnection();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
             JSONObject taskdata1 = new JSONObject(data);
             JSONObject taskdata = taskdata1.optJSONObject("taskdata");
             System.out.println("THIS IS TASK DATA" + taskdata);
             JSONArray assigneearr = taskdata.getJSONArray("assignee");
-            System.out.println("THIS IS JSON ARRAY >>" + assigneearr);
-            JSONObject js = new JSONObject();
-            js.put("username", taskdata.getString("reportto"));
-            HashMap reporttomap = getReportToUserDetails(js.toString());
-            int maxtaskcount = getmaxtaskcountdetails();
-            System.out.println("MAX COUNT >>" + maxtaskcount);
-            ArrayList<Integer> tasklist = new ArrayList();
-            String sql = "insert into taskdetails(taskid,empcode,reporttocmpcode,subject,deadline,createddate,subtopiccount,iscompleted,summary)values(?,?,?,?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?,?,?)";
-            PreparedStatement pst = con.prepareStatement(sql);
-            for (int i = 0; i < assigneearr.length(); i++) {
-                JSONObject assignee = assigneearr.getJSONObject(i);
-                pst.setInt(1, maxtaskcount);
-                pst.setString(2, assignee.getString("empid"));
-                pst.setString(3, reporttomap.get("userid").toString());
-                pst.setString(4, taskdata.getString("subject"));
+            HashMap reporttomap = getReportToUserDetails(taskdata.getString("reportto"));
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
-                // Convert deadline string to Timestamp before setting the parameter
+            for(int i=0;i<assigneearr.length();i++){
+                JSONObject assignee = assigneearr.getJSONObject(i);
+                int taskid = getmaxtaskcountdetails(assignee.getString("empid"));
+                TaskDetails td = new TaskDetails();
+                td.setTaskid(taskid);
+                td.setEmpcode(assignee.getString("empid"));
+                td.setReporttocmpcode(reporttomap.get("userid").toString());
+                td.setSubject(taskdata.getString("subject"));
                 String deadlineStr = taskdata.getString("deadline");
                 Date d1 = sdf.parse(deadlineStr);
-                Timestamp deadline = new Timestamp(d1.getTime()); // Parse deadline string using Timestamp
-                pst.setTimestamp(5, deadline); // Set parameter 5 with the converted Timestamp
-
-                pst.setInt(6, taskdata.getInt("subtopicount"));
-                tasklist.add(maxtaskcount);
-                pst.setBoolean(7, false);
-                pst.setString(8, taskdata.getString("summary"));
-                pst.addBatch();
-                maxtaskcount++;
-            }
-            pst.executeBatch();
-
-            if (taskdata.getInt("subtopicount") > 0) {
-                System.out.println("INSIDE SAVE SUB TASK DATA");
-                saveSubTaskDetails(taskdata.getJSONArray("subtask"), tasklist);
+                Timestamp deadline = new Timestamp(d1.getTime());
+                td.setDeadline(deadline);
+                td.setCreateddate(new Timestamp(new Date().getTime()));
+                td.setSubtopiccount(taskdata.getInt("subtopicount"));
+                td.setIscompleted(false);
+                td.setSummary(taskdata.getString("summary"));
+                session.save(td);
+                if(taskdata.getInt("subtopicount") > 0){
+                    SubtaskDetails std = new SubtaskDetails();
+                    std.setTaskid(taskid);
+                    Criteria crtstd = session.createCriteria(SubtaskDetails.class);
+                    crtstd.setProjection(Projections.rowCount());
+                    List subtaskid = crtstd.list();
+                    int maxsubtaskcount = 1;
+                    if(subtaskid!=null && subtaskid.size()>0){
+                        maxsubtaskcount= Integer.parseInt(subtaskid.get(0).toString())+1;
+                    }
+                    JSONArray subtasarr = taskdata.getJSONArray("subtask");
+                    for(int j=0;j<subtasarr.length();j++) {
+                        JSONObject subtaskobj = subtasarr.getJSONObject(j);
+                        std.setSubtaskid(maxsubtaskcount);
+                        std.setSubject(subtaskobj.getString("subtaskheader"));
+                        String stdeadlineStr = subtaskobj.getString("subtaskDeadline");
+                        Date subd = sdf.parse(stdeadlineStr);
+                        Timestamp stdeadline = new Timestamp(subd.getTime()); // Parse deadline string using Timestamp
+                        std.setDeadline(stdeadline);
+                        std.setCreateddate(new Timestamp(new Date().getTime()));
+                        std.setIscompleted(false);
+                        std.setExtendrequired(false);
+                        std.setTaskid(taskid);
+                        session.save(std);
+                        maxsubtaskcount++;
+                    }
+                }
             }
             rtnmap.put("Status", "success");
+
+            tx.commit();
+//            pst.setBoolean(4, false);
+//
+//
+//            System.out.println("@@INSIDE GET USERS" + data);
+//            con = getConnection();
+//
+//
+//            System.out.println("THIS IS JSON ARRAY >>" + assigneearr);
+//
+//            System.out.println("MAX COUNT >>" + maxtaskcount);
+//            ArrayList<Integer> tasklist = new ArrayList();
+//            String sql = "insert into taskdetails(taskid,empcode,reporttocmpcode,subject,deadline,createddate,subtopiccount,iscompleted,summary)values(?,?,?,?,to_timestamp(?, 'YYYY-MM-DD HH24:MI:SS'),CURRENT_TIMESTAMP,?,?,?)";
+//            PreparedStatement pst = con.prepareStatement(sql);
+//            for (int i = 0; i < assigneearr.length(); i++) {
+//                JSONObject assignee = assigneearr.getJSONObject(i);
+//
+//                tasklist.add(maxtaskcount);
+//                maxtaskcount++;
+//            }
+//            pst.executeBatch();
+//
+//            if (taskdata.getInt("subtopicount") > 0) {
+//                System.out.println("INSIDE SAVE SUB TASK DATA");
+//                saveSubTaskDetails(taskdata.getJSONArray("subtask"), tasklist);
+//            }
+//            rtnmap.put("Status", "success");
         } catch (Exception e) {
             e.printStackTrace();
+            rtnmap.put("Status", "failed");
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rtnmap;
     }
 
-    public int getmaxtaskcountdetails() throws SQLException {
+    public int getmaxtaskcountdetails(String empid){
         int maxcount = 0;
         Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            con = getConnection();
-            String sql = "select count(1) from taskdetails";
-            PreparedStatement pst = con.prepareStatement(sql);
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                int temp = rs.getInt("count");
-                temp = temp + 1;
-                maxcount = temp;
-            } else {
+            Criteria crt = session.createCriteria(TaskDetails.class);
+            crt.add(Restrictions.eq("empcode",empid));
+            crt.setProjection(Projections.rowCount());
+            List count = crt.list();
+            if(count!=null && count.size()>0){
+                maxcount = Integer.parseInt(count.get(0).toString()) +1;
+            }else{
                 maxcount = 1;
             }
+            tx.commit();
+
+//            con = getConnection();
+//            String sql = "select count(1) from taskdetails";
+//            PreparedStatement pst = con.prepareStatement(sql);
+//            ResultSet rs = pst.executeQuery();
+//            if (rs.next()) {
+//                int temp = rs.getInt("count");
+//                temp = temp + 1;
+//                maxcount = temp;
+//            } else {
+//                maxcount = 1;
+//            }
 
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return maxcount;
     }
@@ -479,33 +563,51 @@ public class ServerConnection {
         Connection con = null;
         boolean rtnflag = true;
         HashMap rtnmap = new HashMap();
+        Session session = null;
+        Transaction tx = null;
         try {
-            System.out.println("LOGIN DATA >>>" + username);
-            con = getConnection();
-            PreparedStatement pst = null;
             JSONObject js = new JSONObject(username);
             String loginname = js.getString("username");
             System.out.println("THIS IS LOGINNAME " + loginname);
-            String SQL = "select uid,password,emailid,role from userdetail where username=?";
-            pst = con.prepareStatement(SQL);
-            pst.setString(1, loginname);
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                String mailid = rs.getString("emailid");
+
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            UserDetail users = session.get(UserDetail.class,loginname);
+            if(users!=null && users.getUsername().length()>0){
+                String mailid = users.getEmailid();
                 rtnmap.put("emailid", mailid);
-                rtnmap.put("role", rs.getString("role"));
-                int userid = rs.getInt("uid");
+                rtnmap.put("role", users.getRole());
+                int userid = users.getUid();
                 rtnmap.put("userid", userid);
                 rtnmap.put("username", loginname);
-            } else {
+            }else{
                 rtnmap.put("status", false);
             }
+
+            tx.commit();
+//            System.out.println("LOGIN DATA >>>" + username);
+//            con = getConnection();
+//            PreparedStatement pst = null;
+//
+//            String SQL = "select uid,password,emailid,role from userdetail where username=?";
+//            pst = con.prepareStatement(SQL);
+//            pst.setString(1, loginname);
+//            ResultSet rs = pst.executeQuery();
+//            if (rs.next()) {
+//                String mailid = rs.getString("emailid");
+//                rtnmap.put("emailid", mailid);
+//                rtnmap.put("role", rs.getString("role"));
+//                int userid = rs.getInt("uid");
+//                rtnmap.put("userid", userid);
+//                rtnmap.put("username", loginname);
+//            } else {
+//                rtnmap.put("status", false);
+//            }
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         System.out.println("LOGIN RETURN FLAG >>" + rtnmap);
         return rtnmap;
@@ -514,51 +616,50 @@ public class ServerConnection {
     public JSONArray getroles() throws SQLException {
         JSONArray rolearr = new JSONArray();
         Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            con = getConnection();
-            String SQL = "select id,rolename from roledetails";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
+            Criteria crt = session.createCriteria(RoleDetails.class);
+            List<RoleDetails> roles = crt.list();
+            for(int i=0;i< roles.size();i++){
+                RoleDetails role = roles.get(i);
                 JSONObject js = new JSONObject();
-                js.put("id", rs.getInt("id"));
-                js.put("role", rs.getString("rolename"));
+                js.put("id", role.getId());
+                js.put("role", role.getRolename());
                 rolearr.put(js);
             }
+            tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return rolearr;
     }
 
     public void saveroles(String data) throws SQLException {
-        Connection con = null;
+        Session session = null;
+        Transaction tx = null;
         try {
             JSONObject js = new JSONObject(data);
             JSONArray roledetails = js.optJSONArray("roledetails");
             System.out.println("THIS IS ROLE DETAILS >>" + roledetails);
-            con = getConnection();
-            String SQL = "insert into roledetails(rolename)values(?)";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            for (int i = 0; i < roledetails.length(); i++) {
+            session = new HibernateConnection().getSessionfactory().openSession();
+            tx = session.beginTransaction();
+            for(int i=0;i<roledetails.length(); i++){
+                RoleDetails rd = new RoleDetails();
                 JSONObject role = new JSONObject(roledetails.get(i).toString());
-                System.out.println("THIS IS ROLE >>>" + role);
-                if (role.length() == 1) {
-                    pst.setString(1, role.getString("role"));
-                    pst.addBatch();
-                }
+                rd.setRolename(role.getString("role"));
+                session.save(rd);
             }
-            pst.executeBatch();
+
+             tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
     }
 
@@ -586,7 +687,6 @@ public class ServerConnection {
                 }
                 js.put("deadline", rs.getString("deadline"));
                 taskarr.put(js);
-
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -721,28 +821,38 @@ public class ServerConnection {
 
     public JSONArray gettasknumbers(String empcode) throws SQLException {
         JSONArray tasknumber = new JSONArray();
-        Connection con = null;
+        Session session = new HibernateConnection().getSessionfactory().openSession();
+        Transaction tx = session.beginTransaction();
         try {
-            con = getConnection();
             Date currentdate = new Date();
-            String SQL = "select count(1) from taskdetails where iscompleted=false and deadline>? and extendrequired=false and empcode=?";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            System.out.println("THIS IS CURRENT DATE " + new Timestamp(currentdate.getTime()));
-            pst.setTimestamp(1, new Timestamp(currentdate.getTime()));
-            pst.setString(2, empcode);
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                tasknumber.put(rs.getInt("count"));
-            }
+            Criteria crt = session.createCriteria(UserDetail.class);
+            crt.add(Restrictions.eq("iscompleted",false));
+            crt.add(Restrictions.eq("extendrequired",false));
+            crt.add(Restrictions.eq("empcode",empcode));
+            crt.add(Restrictions.gt("deadline",new Timestamp(currentdate.getTime())));
+            crt.setProjection(Projections.rowCount());
+
+            List countdetaila = crt.list();
+            tasknumber.put(countdetaila.get(0));
+//            con = getConnection();
+//            String SQL = "select count(1) from taskdetails where iscompleted=false and deadline>? and extendrequired=false and empcode=?";
+//            PreparedStatement pst = con.prepareStatement(SQL);
+//            System.out.println("THIS IS CURRENT DATE " + new Timestamp(currentdate.getTime()));
+//            pst.setTimestamp(1, new Timestamp(currentdate.getTime()));
+//            pst.setString(2, empcode);
+//            ResultSet rs = pst.executeQuery();
+//            if (rs.next()) {
+//                tasknumber.put(rs.getInt("count"));
+//            }
+            tx.commit();
 
             JSONArray pendingtaskarr = getpendingtasks(empcode);
             tasknumber.put(pendingtaskarr.length());
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return tasknumber;
     }

@@ -146,7 +146,6 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(mailMap);
                 }
-
             } else {
                 HashMap map = new HashMap();
                 map.put("access", "accessexpired");
