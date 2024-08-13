@@ -74,18 +74,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     HashMap map = new HashMap();
                     if (server.newUserCheck(request)) {
                         boolean rtn = server.newUserSave(request);
@@ -99,8 +88,10 @@ public class apphandler {
                     }
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
-
             } else {
                 HashMap map = new HashMap();
                 map.put("access", "accessexpired");
@@ -127,24 +118,16 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     HashMap map = server.authcodesave(data);
                     map.put("status", "success");
                     map.put("emailid", js.getString("emailid"));
                     HashMap mailMap = mail.mailsend(map);
                     Gson gs = new Gson();
                     jsondata = gs.toJson(mailMap);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             } else {
                 HashMap map = new HashMap();
@@ -191,23 +174,15 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("STATUS >>>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("THIS IS AUTH CODE CHECK");
                     HashMap map = server.authCodeCheck(data);
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
 
@@ -231,7 +206,6 @@ public class apphandler {
             } else {
                 map.put("status", "loginSuccessful");
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -253,18 +227,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     HashMap map = server.getempcode();
                     map.put("status", "success");
@@ -272,6 +235,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -323,18 +289,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     JSONArray list = server.getUsers(data);
                     HashMap map = new HashMap();
@@ -343,6 +298,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -366,18 +324,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     JSONArray list = server.getusers(data);
                     HashMap map = new HashMap();
@@ -386,6 +333,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -409,18 +359,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     HashMap taskmap = server.savetask(data);
                     HashMap map = new HashMap();
@@ -428,6 +367,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -451,18 +393,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     JSONArray rolearr = server.getroles();
                     HashMap map = new HashMap();
@@ -471,6 +402,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -494,18 +428,7 @@ public class apphandler {
             if (accesstoken != null && accesstoken.length() > 0 && refreshToken != null && refreshToken.length() > 0) {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     server.saveroles(data);
                     HashMap map = new HashMap();
@@ -513,6 +436,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -538,18 +464,7 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("THIS IS TOKEN STATUS >>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     JSONArray taskarr = server.gettasks(js.getString(("empcode")));
                     HashMap map = new HashMap();
@@ -558,6 +473,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -584,18 +502,7 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("THIS IS TOKEN STATUS >>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     JSONArray taskarr = server.getpendingtasks(js.getString(("empcode")));
                     HashMap map = new HashMap();
@@ -604,6 +511,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -630,18 +540,7 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("THIS IS TOKEN STATUS >>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     JSONArray taskarr = server.gettasknumbers(js.getString(("empcode")));
                     HashMap map = new HashMap();
@@ -651,6 +550,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -677,18 +579,7 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("THIS IS TOKEN STATUS >>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     boolean flag = server.setCompleteTask(js);
                     HashMap map = new HashMap();
@@ -701,6 +592,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -727,18 +621,7 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("THIS IS TOKEN STATUS >>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     JSONArray taskarr = server.getCompletedTask(js);
                     HashMap map = new HashMap();
@@ -747,6 +630,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -773,18 +659,7 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("THIS IS TOKEN STATUS >>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     boolean flag = server.saveExtendTaskDetail(js);
                     HashMap map = new HashMap();
@@ -797,6 +672,9 @@ public class apphandler {
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -823,24 +701,16 @@ public class apphandler {
                 HashMap accessMap = accessVerify(accesstoken, refreshToken, username);
                 String status = (String) accessMap.get("status");
                 System.out.println("THIS IS TOKEN STATUS >>" + status);
-                if (status.equalsIgnoreCase("sessionexpired")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "sessionexpired");
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("tokenrefreshed")) {
-                    HashMap map = new HashMap();
-                    map.put("status", "tokenrefreshed");
-                    map.put("token", accessMap.get("accesstoken"));
-                    Gson gs = new Gson();
-                    jsondata = gs.toJson(map);
-                } else if (status.equalsIgnoreCase("success")) {
+                if (status.equalsIgnoreCase("success")) {
                     System.out.println("INSIDE GET MANAEGRS LIST ");
                     HashMap map = server.getBarChartDetails(js.getString("empcode"));
                     map.put("status", "success");
                     Gson gs = new Gson();
                     jsondata = gs.toJson(map);
                     System.out.println("THIS IS JSON DATA >>" + jsondata);
+                }else{
+                    Gson gs = new Gson();
+                    jsondata = gs.toJson(accessMap);
                 }
             }
         } catch (Exception e) {
@@ -852,5 +722,4 @@ public class apphandler {
         response.header("Access-Control-Allow-Origin", "*");
         return response.build();
     }
-
 }

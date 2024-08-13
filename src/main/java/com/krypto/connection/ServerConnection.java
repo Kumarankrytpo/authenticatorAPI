@@ -893,36 +893,42 @@ public class ServerConnection {
     }
 
     public JSONArray getCompletedTask(JSONObject js) throws SQLException {
-        Connection con = null;
         JSONArray taskarr = new JSONArray();
         Session session = null;
         Transaction tx = null;
         try {
             session = new HibernateConnection().getSessionfactory().openSession();
             tx = session.beginTransaction();
+            Criteria crt = session.createCriteria(TaskDetails.class);
+            crt.add(Restrictions.eq("empcode",js.getString("empcode")));
+            crt.add(Restrictions.eq("iscompleted",true));
+            List<TaskDetails> tasks = crt.list();
 
-
-            con = getConnection();
-            String SQL = "select taskid,subject,deadline,completeddate,subtopiccount,rating from taskdetails where empcode=? and iscompleted=true";
-            PreparedStatement pst = con.prepareStatement(SQL);
-            pst.setString(1, js.getString("empcode"));
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
+            for(TaskDetails task : tasks){
                 JSONObject taskjs = new JSONObject();
-                taskjs.put("taskid", rs.getInt("taskid"));
-                taskjs.put("subject", rs.getString("subject"));
-                taskjs.put("deadline", rs.getString("deadline"));
-                taskjs.put("completeddate", rs.getString("completeddate"));
-                taskjs.put("subtaskcount", rs.getInt("subtopiccount"));
-                taskjs.put("rating", rs.getInt("rating"));
+                taskjs.put("taskid", task.getTaskid());
+                taskjs.put("subject", task.getSubject());
+                taskjs.put("deadline", task.getDeadline());
+                taskjs.put("completeddate", task.getCompleteddate());
+                taskjs.put("subtaskcount", task.getSubtopiccount());
+                taskjs.put("rating", task.getRating());
                 taskarr.put(taskjs);
             }
+            tx.commit();
+
+//            con = getConnection();
+//            String SQL = "select taskid,subject,deadline,completeddate,subtopiccount,rating from taskdetails where empcode=? and iscompleted=true";
+//            PreparedStatement pst = con.prepareStatement(SQL);
+//            pst.setString(1, js.getString("empcode"));
+//            ResultSet rs = pst.executeQuery();
+//            while (rs.next()) {
+//
+//            }
         } catch (Exception e) {
             e.printStackTrace();
+            tx.rollback();
         } finally {
-            if (con != null) {
-                con.close();
-            }
+            session.close();
         }
         return taskarr;
     }
